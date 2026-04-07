@@ -1,4 +1,4 @@
 import type { MetadataRoute } from 'next'
 export default function sitemap(): MetadataRoute.Sitemap {
-	return [{ url: 'https://gray-value.liiift.studio', lastModified: new Date(), changeFrequency: 'monthly', priority: 1 }]
+	return [{ url: 'https://steadygray.com', lastModified: new Date(), changeFrequency: 'monthly', priority: 1 }]
 }

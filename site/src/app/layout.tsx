@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 	openGraph: {
 		title: "Gray Value — Optical density equalisation for paragraphs",
 		description: "Equalize the visual grey of every paragraph line. Canvas pixel sampling, per-line letter-spacing correction.",
-		url: "https://gray-value.liiift.studio",
+		url: "https://steadygray.com",
 		siteName: "Gray Value",
 		type: "website",
 	},
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 		title: "Gray Value — Optical density equalisation for paragraphs",
 		description: "Equalize the visual grey of every paragraph line. Canvas pixel sampling, per-line letter-spacing correction.",
 	},
-	metadataBase: new URL("https://gray-value.liiift.studio"),
+	metadataBase: new URL("https://steadygray.com"),
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

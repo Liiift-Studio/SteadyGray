@@ -27,7 +27,7 @@ export default async function Image() {
 						<span>Canvas pixel sampling</span><span style={{ opacity: 0.4 }}>·</span>
 						<span>React + Vanilla JS</span>
 					</div>
-					<div style={{ fontSize: 13, color: 'rgba(255,255,255,0.18)', letterSpacing: '0.04em' }}>gray-value.liiift.studio</div>
+					<div style={{ fontSize: 13, color: 'rgba(255,255,255,0.18)', letterSpacing: '0.04em' }}>steadygray.com</div>
 				</div>
 			</div>
 		),
