@@ -1,5 +1,5 @@
 {
-	"name": "gray-value",
+	"name": "@liiift-studio/gray-value",
 	"version": "0.0.1",
 	"description": "Paragraph optical density equalization \u2014 measure actual glyph area per line and equalize visual density across all lines",
 	"type": "module",

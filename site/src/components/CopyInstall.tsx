@@ -3,7 +3,7 @@
 // Click-to-copy npm install snippet with a link to the npm package page
 import { useState } from "react"
 
-const CMD = "npm install gray-value"
+const CMD = "npm install @liiift-studio/gray-value"
 const NPM_URL = "https://www.npmjs.com/package/gray-value"
 
 /** Displays the install command, copies it to clipboard on click, and links to npm */
