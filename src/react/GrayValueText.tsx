@@ -1,5 +1,5 @@
 // gray-value/src/react/GrayValueText.tsx — React component wrapper
-import { forwardRef } from 'react'
+import React, { forwardRef } from 'react'
 import { useGrayValue } from './useGrayValue'
 import type { GrayValueOptions } from '../core/types'
 
@@ -7,7 +7,7 @@ interface GrayValueTextProps extends GrayValueOptions {
 	children: React.ReactNode
 	className?: string
 	style?: React.CSSProperties
-	as?: keyof JSX.IntrinsicElements
+	as?: React.ElementType
 }
 
 /**
@@ -17,7 +17,7 @@ export const GrayValueText = forwardRef<HTMLElement, GrayValueTextProps>(
 	function GrayValueText({ children, className, style, as: Tag = 'p', ...options }, _ref) {
 		const innerRef = useGrayValue(options)
 		return (
-			<Tag ref={innerRef as React.Ref<HTMLParagraphElement>} className={className} style={style}>
+			<Tag ref={innerRef as React.Ref<HTMLElement>} className={className} style={style}>
 				{children}
 			</Tag>
 		)
