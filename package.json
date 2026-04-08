@@ -1,6 +1,6 @@
 {
 	"name": "@liiift-studio/steadygray",
-	"version": "0.0.8",
+	"version": "0.0.9",
 	"description": "Paragraph optical density equalization — measure actual glyph area per line and equalize visual density across all lines",
 	"type": "module",
 	"main": "dist/index.cjs",

@@ -89,7 +89,7 @@ export default function Demo() {
 			<div
 				ref={textRef}
 				className="relative pb-8"
-				style={{ cursor: 'crosshair' }}
+				style={{ cursor: 'crosshair', overflow: 'hidden' }}
 				onMouseMove={e => setInspectorPos(posFromMouse(e))}
 				onMouseLeave={() => setInspectorPos(null)}
 				onTouchStart={e => { e.stopPropagation(); setInspectorPos(posFromTouch(e)) }}
