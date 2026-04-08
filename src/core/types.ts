@@ -3,6 +3,18 @@
 /** Options controlling the gray-value density-equalization algorithm */
 export interface GrayValueOptions {
 	/**
+	 * Line detection method. Default: 'bcr'
+	 *
+	 * - **'bcr'** (default) — uses `getBoundingClientRect()` on injected word spans.
+	 *   Ground truth: reads actual browser layout, handles all inline HTML and any font.
+	 *
+	 * - **'canvas'** — uses `@chenglou/pretext` canvas measurement for arithmetic line
+	 *   breaking. No forced reflow on resize. Requires `@chenglou/pretext` to be installed.
+	 *   Falls back to 'bcr' on the first render while pretext loads.
+	 *   Avoid with `system-ui` font (canvas resolves differently on macOS).
+	 */
+	lineDetection?: 'bcr' | 'canvas'
+	/**
 	 * Target optical density ratio (0–1).
 	 * 'auto' = average of all measured line densities (default).
 	 */

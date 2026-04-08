@@ -1,6 +1,35 @@
 // gray-value/src/core/adjust.ts — canvas-based optical density equalization algorithm
 import { GRAY_VALUE_CLASSES, type GrayValueOptions } from './types'
 
+// ─── Pretext (canvas line detection) ─────────────────────────────────────────
+
+type PretextModule = {
+	prepareWithSegments: (text: string, font: string) => unknown
+	layoutWithLines: (prepared: unknown, maxWidth: number, lineHeight: number) => { lines: { text: string; width: number }[] }
+}
+
+let _pretext: PretextModule | null = null
+let _pretextLoading = false
+
+function tryLoadPretext(): void {
+	if (_pretext !== null || _pretextLoading) return
+	_pretextLoading = true
+	import('@chenglou/pretext' as string)
+		.then((m) => { _pretext = m as PretextModule })
+		.catch(() => {
+			console.warn('[steadygray] canvas lineDetection requires @chenglou/pretext — falling back to BCR')
+		})
+}
+
+type PreparedEntry = { originalHTML: string; prepared: unknown }
+const pretextCache = new WeakMap<HTMLElement, PreparedEntry>()
+
+function getLineHeightPx(el: HTMLElement): number {
+	const s = getComputedStyle(el)
+	const lh = parseFloat(s.lineHeight)
+	return isNaN(lh) ? parseFloat(s.fontSize) * 1.2 : lh
+}
+
 /** Resolved defaults applied when options are omitted */
 const DEFAULTS = {
 	targetDensity: 'auto' as const,
@@ -210,9 +239,15 @@ export function applyGrayValue(
 		return
 	}
 
-	// --- Pass 3: Read phase — group word spans into visual lines ---
-	// Each word's BCR.top identifies which visual row it sits on.
-	// We batch all reads here before any writes.
+	// --- Pass 3: Group word spans into visual lines ---
+	// Canvas path: pretext arithmetic (no forced reflow on resize).
+	// BCR path: getBoundingClientRect — ground truth for actual browser layout.
+
+	const lineDetection = options.lineDetection ?? 'bcr'
+	if (lineDetection === 'canvas') tryLoadPretext()
+
+	const useCanvas = lineDetection === 'canvas' && _pretext !== null
+
 	interface LineData {
 		/** Raw text content of the line (spaces collapsed) */
 		text: string
@@ -225,33 +260,71 @@ export function applyGrayValue(
 	}
 
 	const lines: LineData[] = []
-	let currentTop: number | null = null
-	let currentLine: LineData | null = null
 
-	for (const span of wordSpans) {
-		const bcr = span.getBoundingClientRect()
-		// Round to nearest pixel to absorb subpixel jitter between words on the same row
-		const top = Math.round(bcr.top)
-
-		if (currentTop === null || top !== currentTop) {
-			currentTop = top
-			currentLine = {
-				text: '',
-				width: bcr.width,
-				height: bcr.height || fontSize,
-				spans: [span],
-			}
-			lines.push(currentLine)
+	if (useCanvas) {
+		// Canvas path — pretext gives us line texts and widths directly
+		const cached = pretextCache.get(element)
+		let prepared: unknown
+		if (cached && cached.originalHTML === originalHTML) {
+			prepared = cached.prepared
 		} else {
-			currentLine!.width += bcr.width
-			if (bcr.height > currentLine!.height) currentLine!.height = bcr.height
-			currentLine!.spans.push(span)
+			prepared = _pretext!.prepareWithSegments(element.textContent ?? '', getCanvasFontStyle(element))
+			pretextCache.set(element, { originalHTML, prepared })
 		}
-	}
+		const lineHeight = getLineHeightPx(element)
+		const { lines: pretextLines } = _pretext!.layoutWithLines(prepared, containerWidth, lineHeight)
 
-	// Build text content per line from span text
-	for (const line of lines) {
-		line.text = line.spans.map((s) => s.textContent ?? '').join('').trim()
+		let si = 0
+		for (const pl of pretextLines) {
+			const target = pl.text.replace(/\s+/g, ' ').trim()
+			const spans: HTMLElement[] = []
+			let acc = ''
+			while (si < wordSpans.length) {
+				const word = (wordSpans[si].textContent ?? '').replace(/\s+/g, ' ').trim()
+				acc = acc ? acc + ' ' + word : word
+				spans.push(wordSpans[si])
+				si++
+				if (acc === target) break
+			}
+			if (spans.length > 0) {
+				lines.push({ text: pl.text.trim(), width: pl.width, height: lineHeight, spans })
+			}
+		}
+		while (si < wordSpans.length) {
+			lines[lines.length - 1]?.spans.push(wordSpans[si++])
+		}
+		// Rebuild text for any lines that got extra spans
+		for (const line of lines) {
+			line.text = line.spans.map((s) => s.textContent ?? '').join('').trim()
+		}
+	} else {
+		// BCR path — batch all reads before any writes
+		let currentTop: number | null = null
+		let currentLine: LineData | null = null
+
+		for (const span of wordSpans) {
+			const bcr = span.getBoundingClientRect()
+			const top = Math.round(bcr.top)
+
+			if (currentTop === null || top !== currentTop) {
+				currentTop = top
+				currentLine = {
+					text: '',
+					width: bcr.width,
+					height: bcr.height || fontSize,
+					spans: [span],
+				}
+				lines.push(currentLine)
+			} else {
+				currentLine!.width += bcr.width
+				if (bcr.height > currentLine!.height) currentLine!.height = bcr.height
+				currentLine!.spans.push(span)
+			}
+		}
+
+		for (const line of lines) {
+			line.text = line.spans.map((s) => s.textContent ?? '').join('').trim()
+		}
 	}
 
 	if (lines.length === 0) {
