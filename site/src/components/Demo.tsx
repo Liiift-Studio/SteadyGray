@@ -22,6 +22,7 @@ export default function Demo() {
 	const [calibrationFactor, setCalibrationFactor] = useState(2.0)
 	const [method, setMethod] = useState<'letter-spacing' | 'word-spacing'>('letter-spacing')
 	const [inspectorPos, setInspectorPos] = useState<{ x: number; y: number } | null>(null)
+	const [comparing, setComparing] = useState(false)
 	const textRef = useRef<HTMLDivElement>(null)
 
 	const dMax = useDeferredValue(maxAdjustment)
@@ -56,9 +57,11 @@ export default function Demo() {
 				{(['letter-spacing', 'word-spacing'] as const).map(v => (
 					<button key={v} onClick={() => setMethod(v)} className="text-xs px-3 py-1 rounded-full border transition-opacity" style={{ borderColor: 'currentColor', opacity: method === v ? 1 : 0.5, background: method === v ? 'var(--btn-bg)' : 'transparent' }}>{v}</button>
 				))}
+				<span className="text-xs uppercase tracking-widest opacity-50 ml-4">Compare</span>
+				<button onClick={() => setComparing(v => !v)} className="text-xs px-3 py-1 rounded-full border transition-opacity" style={{ borderColor: 'currentColor', opacity: comparing ? 1 : 0.5, background: comparing ? 'var(--btn-bg)' : 'transparent' }}>without</button>
 			</div>
 
-			{/* Inspector wrapper — the blur circle follows the cursor */}
+			{/* Inspector wrapper — blur circle follows cursor; compare overlay sits behind it */}
 			<div
 				ref={textRef}
 				className="relative"
@@ -72,6 +75,9 @@ export default function Demo() {
 				<GrayValueText maxAdjustment={dMax} calibrationFactor={dCal} method={dMethod} style={sampleStyle}>
 					{SAMPLE}
 				</GrayValueText>
+				{comparing && (
+					<p aria-hidden style={{ ...sampleStyle, position: 'absolute', top: 0, left: 0, width: '100%', margin: 0, opacity: 0.25, pointerEvents: 'none' }}>{SAMPLE}</p>
+				)}
 				{inspectorPos && (
 					<div
 						aria-hidden
@@ -93,14 +99,6 @@ export default function Demo() {
 			</div>
 
 			<p className="text-xs opacity-50 italic mt-6">Each line is measured by pixel density and adjusted by ±{maxAdjustment.toFixed(3)}em via {method}. Move the cursor over the paragraph to inspect gray values.</p>
-			<div className="flex justify-end mt-8">
-				<div className="w-72 flex flex-col gap-2">
-					<span className="text-xs uppercase tracking-widest opacity-50">without</span>
-					<div className="rounded-lg p-3" style={{ background: "rgba(0,0,0,0.15)" }}>
-						<p style={{ ...sampleStyle, fontSize: "0.7rem", lineHeight: "1.8" }} className="opacity-60">{SAMPLE}</p>
-					</div>
-				</div>
-			</div>
 		</div>
 	)
 }
