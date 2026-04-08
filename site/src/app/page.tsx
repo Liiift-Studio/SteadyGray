@@ -67,6 +67,24 @@ export default function Home() {
 </GrayValueText>`} />
 					</div>
 					<div className="flex flex-col gap-3">
+						<p className="opacity-50">Hook</p>
+						<CodeBlock code={`import { useGrayValue } from '@liiift-studio/steadygray'
+
+const ref = useGrayValue({ maxAdjustment: 0.05, calibrationFactor: 2 })
+<p ref={ref}>{children}</p>`} />
+					</div>
+					<div className="flex flex-col gap-3">
+						<p className="opacity-50">Vanilla JS</p>
+						<CodeBlock code={`import { applyGrayValue, removeGrayValue, getCleanHTML } from '@liiift-studio/steadygray'
+
+const el = document.querySelector('p')
+const original = getCleanHTML(el)
+applyGrayValue(el, original, { maxAdjustment: 0.05, calibrationFactor: 2 })
+
+// Later — restore original:
+removeGrayValue(el, original)`} />
+					</div>
+					<div className="flex flex-col gap-3">
 						<p className="opacity-50">Options</p>
 						<table className="w-full text-xs">
 							<thead><tr className="opacity-50 text-left"><th className="pb-2 pr-6 font-normal">Option</th><th className="pb-2 pr-6 font-normal">Default</th><th className="pb-2 font-normal">Description</th></tr></thead>
