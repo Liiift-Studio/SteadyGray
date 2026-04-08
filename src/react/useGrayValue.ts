@@ -1,4 +1,4 @@
-// gray-value/src/react/useGrayValue.ts — React hook
+// steadyGray/src/react/useGrayValue.ts — React hook
 import { useCallback, useLayoutEffect, useRef } from 'react'
 import { applyGrayValue, getCleanHTML } from '../core/adjust'
 import type { GrayValueOptions } from '../core/types'

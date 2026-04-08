@@ -1,4 +1,4 @@
-// gray-value/src/core/types.ts — types and class constants
+// steadyGray/src/core/types.ts — types and class constants
 
 /** Options controlling the gray-value density-equalization algorithm */
 export interface GrayValueOptions {

@@ -1,4 +1,4 @@
-// gray-value/src/react/GrayValueText.tsx — React component wrapper
+// steadyGray/src/react/GrayValueText.tsx — React component wrapper
 import React, { forwardRef } from 'react'
 import { useGrayValue } from './useGrayValue'
 import type { GrayValueOptions } from '../core/types'
