@@ -49,16 +49,21 @@ export function measureLineDensity(
 	const ctx = canvas.getContext('2d')
 	if (!ctx) return 0
 
-	canvas.width = Math.max(1, Math.ceil(targetWidth))
-	canvas.height = Math.max(1, Math.ceil(lineHeight))
+	// Scale canvas by devicePixelRatio so text renders at full resolution on retina displays.
+	// Without this, text at 2× DPR renders at half size → wrong density readings.
+	const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1
+	canvas.width = Math.max(1, Math.ceil(targetWidth * dpr))
+	canvas.height = Math.max(1, Math.ceil(lineHeight * dpr))
 
-	ctx.clearRect(0, 0, canvas.width, canvas.height)
+	// setTransform resets the matrix (avoids accumulation when the canvas is reused)
+	ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+	ctx.clearRect(0, 0, targetWidth, lineHeight)
 	ctx.fillStyle = 'white'
-	ctx.fillRect(0, 0, canvas.width, canvas.height)
+	ctx.fillRect(0, 0, targetWidth, lineHeight)
 	ctx.fillStyle = 'black'
 	ctx.font = fontStyle
 	// Approximate baseline at 75% of line height
-	ctx.fillText(text, 0, canvas.height * 0.75)
+	ctx.fillText(text, 0, lineHeight * 0.75)
 
 	const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
 	const data = imageData.data
@@ -70,8 +75,9 @@ export function measureLineDensity(
 		const r = data[i]
 		const g = data[i + 1]
 		const b = data[i + 2]
-		// Count as ink if significantly darker than white (threshold: 200)
-		if (r < 200 || g < 200 || b < 200) inkPixels++
+		// Count as ink if darker than mid-grey. Threshold 140 correctly captures
+		// antialiased edges at high DPR; 200 was too permissive and over-counted.
+		if (r < 140 || g < 140 || b < 140) inkPixels++
 	}
 
 	return totalPixels > 0 ? inkPixels / totalPixels : 0
