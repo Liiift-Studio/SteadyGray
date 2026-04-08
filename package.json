@@ -63,5 +63,6 @@
 	},
 	"bugs": {
 		"url": "https://github.com/Liiift-Studio/SteadyGray/issues"
-	}
+	},
+	"sideEffects": false
 }
