@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Background -->
+  <rect width="64" height="64" rx="14" fill="hsl(240,18%,12%)"/>
+
+  <!-- Steady gray: lines showing controlled, consistent contrast steps -->
+  <!-- Each line is the same measured opacity — not random, not drifting -->
+  <rect x="9" y="10" width="46" height="7" rx="3.5" fill="#f0ece3" opacity="1.0"/>
+  <rect x="9" y="21" width="38" height="7" rx="3.5" fill="#f0ece3" opacity="0.75"/>
+  <rect x="9" y="32" width="46" height="7" rx="3.5" fill="#f0ece3" opacity="0.5"/>
+  <rect x="9" y="43" width="38" height="7" rx="3.5" fill="#f0ece3" opacity="0.25"/>
+
+  <!-- Tick marks showing the measured steps are even -->
+  <rect x="57" y="10" width="2" height="7"  rx="1" fill="#f0ece3" opacity="0.5"/>
+  <rect x="57" y="21" width="2" height="7"  rx="1" fill="#f0ece3" opacity="0.5"/>
+  <rect x="57" y="32" width="2" height="7"  rx="1" fill="#f0ece3" opacity="0.5"/>
+  <rect x="57" y="43" width="2" height="7"  rx="1" fill="#f0ece3" opacity="0.5"/>
+</svg>
