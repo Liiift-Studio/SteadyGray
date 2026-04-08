@@ -59,7 +59,7 @@ export default function Home() {
 				<div className="flex flex-col gap-8 text-sm">
 					<div className="flex flex-col gap-3">
 						<p className="opacity-50">Drop-in component</p>
-						<CodeBlock code={`import { GrayValueText } from '@liiift-studio/steady-gray'
+						<CodeBlock code={`import { GrayValueText } from '@liiift-studio/steadyGray'
 
 <GrayValueText maxAdjustment={0.05} calibrationFactor={2}>
   Your paragraph text here...
