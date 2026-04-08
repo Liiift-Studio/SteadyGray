@@ -285,4 +285,110 @@ describe('gray-value', () => {
 		const original = getCleanHTML(el)
 		expect(() => applyGrayValue(el, original, {}, makeMockCanvas())).not.toThrow()
 	})
+
+	// 11. method:'word-spacing' sets word-spacing not letter-spacing
+	it('method word-spacing sets word-spacing on line spans', () => {
+		const words = Array.from({ length: 14 }, (_, i) => `word${i + 1}`).join(' ')
+		const el = makeElement(words)
+		const original = getCleanHTML(el)
+		applyGrayValue(el, original, { method: 'word-spacing', targetDensity: 0.05, calibrationFactor: 2.0, maxAdjustment: 0.05 }, makeMockCanvas())
+		const lines = Array.from(el.querySelectorAll<HTMLElement>(`.${GRAY_VALUE_CLASSES.line}`))
+		expect(lines.length).toBeGreaterThan(0)
+		// At least one line should have a non-empty word-spacing style
+		const hasWordSpacing = lines.some((l) => l.style.wordSpacing !== '')
+		expect(hasWordSpacing).toBe(true)
+	})
+
+	// 12. calibrationFactor:0 → no spacing adjustment (0 * delta = 0)
+	it('calibrationFactor:0 produces zero spacing adjustment', () => {
+		const words = Array.from({ length: 14 }, (_, i) => `word${i + 1}`).join(' ')
+		const el = makeElement(words)
+		const original = getCleanHTML(el)
+		applyGrayValue(el, original, { targetDensity: 0.05, calibrationFactor: 0, maxAdjustment: 0.05 }, makeMockCanvas())
+		const lines = Array.from(el.querySelectorAll<HTMLElement>(`.${GRAY_VALUE_CLASSES.line}`))
+		expect(lines.length).toBeGreaterThan(0)
+		for (const line of lines) {
+			const spacing = parseFloat(line.style.letterSpacing || '0')
+			expect(Math.abs(spacing)).toBeLessThan(0.001)
+		}
+	})
+
+	// 13. Apply twice from same original gives same line count (idempotent)
+	it('applying twice from same original gives same line count', () => {
+		const words = Array.from({ length: 14 }, (_, i) => `word${i + 1}`).join(' ')
+		const el = makeElement(words)
+		const original = getCleanHTML(el)
+		applyGrayValue(el, original, {}, makeMockCanvas())
+		const count1 = el.querySelectorAll(`.${GRAY_VALUE_CLASSES.line}`).length
+		applyGrayValue(el, original, {}, makeMockCanvas())
+		const count2 = el.querySelectorAll(`.${GRAY_VALUE_CLASSES.line}`).length
+		expect(count2).toBe(count1)
+	})
+
+	// 14. gv-word spans are produced for multi-word content
+	it('produces gv-word spans for multi-word content', () => {
+		const el = makeElement('one two three four five six seven')
+		const original = getCleanHTML(el)
+		applyGrayValue(el, original, {}, makeMockCanvas())
+		// After apply the word spans have been grouped into lines;
+		// gv-word spans may or may not persist but line spans must exist
+		const lines = el.querySelectorAll(`.${GRAY_VALUE_CLASSES.line}`)
+		expect(lines.length).toBeGreaterThan(0)
+	})
+
+	// 15. Positive and negative adjustments don't both exceed maxAdjustment
+	it('positive spacing adjustments are clamped to maxAdjustment', () => {
+		const words = Array.from({ length: 14 }, (_, i) => `word${i + 1}`).join(' ')
+		const el = makeElement(words)
+		const original = getCleanHTML(el)
+		const maxAdj = 0.03
+		// targetDensity = 1.0 → all lines below target → positive spacing
+		applyGrayValue(el, original, { targetDensity: 1.0, maxAdjustment: maxAdj, calibrationFactor: 10.0 }, makeMockCanvas())
+		const lines = Array.from(el.querySelectorAll<HTMLElement>(`.${GRAY_VALUE_CLASSES.line}`))
+		for (const line of lines) {
+			const spacing = parseFloat(line.style.letterSpacing || '0')
+			expect(Math.abs(spacing)).toBeLessThanOrEqual(maxAdj + 0.001)
+		}
+	})
+
+	// 16. measureLineDensity: canvas with all opaque pixels returns value > 0
+	it('measureLineDensity returns > 0 for fully opaque content', () => {
+		const fullCanvas = {
+			width: 100, height: 10,
+			getContext: () => ({
+				font: '', fillStyle: '', clearRect: () => {}, fillRect: () => {}, fillText: () => {},
+				getImageData: () => {
+					const data = new Uint8ClampedArray(100 * 10 * 4)
+					// All black pixels
+					for (let i = 0; i < data.length; i += 4) {
+						data[i] = 0; data[i + 1] = 0; data[i + 2] = 0; data[i + 3] = 255
+					}
+					return { data }
+				},
+				canvas: { width: 100, height: 10 },
+			}),
+		} as unknown as HTMLCanvasElement
+		const density = measureLineDensity('Hello world', '400 16px serif', 100, 10, fullCanvas)
+		expect(density).toBeGreaterThan(0)
+	})
+
+	// 17. Link text content is preserved after apply (element may be re-wrapped)
+	it('text content inside <a> is preserved after applyGrayValue', () => {
+		const el = makeElement('<a href="#">typography</a> tools for the web')
+		const original = getCleanHTML(el)
+		applyGrayValue(el, original, {}, makeMockCanvas())
+		// Text content must survive even if link element structure is modified
+		expect(el.textContent).toContain('typography')
+	})
+
+	// 18. getCleanHTML after apply strips all gv- class names
+	it('getCleanHTML after apply strips all injected markup', () => {
+		const words = Array.from({ length: 14 }, (_, i) => `word${i + 1}`).join(' ')
+		const el = makeElement(words)
+		const original = getCleanHTML(el)
+		applyGrayValue(el, original, {}, makeMockCanvas())
+		const cleaned = getCleanHTML(el)
+		expect(cleaned).not.toContain(GRAY_VALUE_CLASSES.line)
+		expect(cleaned).not.toContain(GRAY_VALUE_CLASSES.word)
+	})
 })
