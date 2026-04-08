@@ -1,9 +1,11 @@
 "use client"
 
-import { useState, useDeferredValue } from "react"
+import { useState, useDeferredValue, useRef } from "react"
 import { GrayValueText } from "@liiift-studio/steadygray"
 
 const SAMPLE = `The colour of a page — the compositor's term for the aggregate grey of the text block — is determined by the ratio of ink to space across every line. A line with many narrow letters sits lighter than one with wide letters and generous spacing. Print compositors corrected this by hand, adjusting word spaces to equalise the grey. No web tool has automated this measurement. Gray Value uses Canvas to sample the actual ink pixels in each rendered line, then adjusts letter-spacing to bring every line to the same optical density. The adjustment is invisible when correct — all you notice is that the paragraph looks even.`
+
+const INSPECTOR_R = 64
 
 function Slider({ label, value, min, max, step, onChange, fmt }: { label: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void; fmt?: (v: number) => string }) {
 	return (
@@ -19,6 +21,8 @@ export default function Demo() {
 	const [maxAdjustment, setMaxAdjustment] = useState(0.05)
 	const [calibrationFactor, setCalibrationFactor] = useState(2.0)
 	const [method, setMethod] = useState<'letter-spacing' | 'word-spacing'>('letter-spacing')
+	const [inspectorPos, setInspectorPos] = useState<{ x: number; y: number } | null>(null)
+	const textRef = useRef<HTMLDivElement>(null)
 
 	const dMax = useDeferredValue(maxAdjustment)
 	const dCal = useDeferredValue(calibrationFactor)
@@ -28,6 +32,17 @@ export default function Demo() {
 		fontFamily: "var(--font-merriweather), serif",
 		fontSize: "1.125rem",
 		lineHeight: "1.8",
+	}
+
+	function posFromMouse(e: React.MouseEvent<HTMLDivElement>) {
+		const rect = e.currentTarget.getBoundingClientRect()
+		return { x: e.clientX - rect.left, y: e.clientY - rect.top }
+	}
+
+	function posFromTouch(e: React.TouchEvent<HTMLDivElement>) {
+		const rect = e.currentTarget.getBoundingClientRect()
+		const t = e.touches[0]
+		return { x: t.clientX - rect.left, y: t.clientY - rect.top }
 	}
 
 	return (
@@ -42,10 +57,42 @@ export default function Demo() {
 					<button key={v} onClick={() => setMethod(v)} className="text-xs px-3 py-1 rounded-full border transition-opacity" style={{ borderColor: 'currentColor', opacity: method === v ? 1 : 0.5, background: method === v ? 'var(--btn-bg)' : 'transparent' }}>{v}</button>
 				))}
 			</div>
-			<GrayValueText maxAdjustment={dMax} calibrationFactor={dCal} method={dMethod} style={sampleStyle}>
-				{SAMPLE}
-			</GrayValueText>
-			<p className="text-xs opacity-50 italic mt-6">Each line is measured by pixel density and adjusted by ±{maxAdjustment.toFixed(3)}em via {method}.</p>
+
+			{/* Inspector wrapper — the blur circle follows the cursor */}
+			<div
+				ref={textRef}
+				className="relative"
+				style={{ cursor: 'crosshair' }}
+				onMouseMove={e => setInspectorPos(posFromMouse(e))}
+				onMouseLeave={() => setInspectorPos(null)}
+				onTouchStart={e => { e.stopPropagation(); setInspectorPos(posFromTouch(e)) }}
+				onTouchMove={e => { e.stopPropagation(); setInspectorPos(posFromTouch(e)) }}
+				onTouchEnd={() => setInspectorPos(null)}
+			>
+				<GrayValueText maxAdjustment={dMax} calibrationFactor={dCal} method={dMethod} style={sampleStyle}>
+					{SAMPLE}
+				</GrayValueText>
+				{inspectorPos && (
+					<div
+						aria-hidden
+						style={{
+							position: 'absolute',
+							left: inspectorPos.x - INSPECTOR_R,
+							top: inspectorPos.y - INSPECTOR_R,
+							width: INSPECTOR_R * 2,
+							height: INSPECTOR_R * 2,
+							borderRadius: '50%',
+							backdropFilter: 'blur(7px)',
+							WebkitBackdropFilter: 'blur(7px)',
+							border: '1px solid rgba(255,255,255,0.15)',
+							boxShadow: '0 0 0 1px rgba(0,0,0,0.25)',
+							pointerEvents: 'none',
+						}}
+					/>
+				)}
+			</div>
+
+			<p className="text-xs opacity-50 italic mt-6">Each line is measured by pixel density and adjusted by ±{maxAdjustment.toFixed(3)}em via {method}. Move the cursor over the paragraph to inspect gray values.</p>
 			<div className="flex justify-end mt-8">
 				<div className="w-72 flex flex-col gap-2">
 					<span className="text-xs uppercase tracking-widest opacity-50">without</span>
