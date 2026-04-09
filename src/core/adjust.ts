@@ -75,7 +75,9 @@ export function measureLineDensity(
 	lineHeight: number,
 	canvas: HTMLCanvasElement,
 ): number {
-	const ctx = canvas.getContext('2d')
+	// willReadFrequently tells Chrome to use a CPU-backed canvas for this context,
+	// avoiding expensive GPU readback on each getImageData() call.
+	const ctx = canvas.getContext('2d', { willReadFrequently: true })
 	if (!ctx) return 0
 
 	// Scale canvas by devicePixelRatio so text renders at full resolution on retina displays.
