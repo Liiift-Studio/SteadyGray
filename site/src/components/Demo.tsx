@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useDeferredValue } from "react"
+import { useState, useDeferredValue, useRef } from "react"
 import { GrayValueText } from "@liiift-studio/steadygray"
 
 const SAMPLE = `The colour of a page — the compositor's term for the aggregate grey of the text block — is determined by the ratio of ink to space across every line. A line with many narrow letters sits lighter than one with wide letters and generous spacing. Print compositors corrected this by hand, adjusting word spaces to equalise the grey. No web tool has automated this measurement. Gray Value uses Canvas to sample the actual ink pixels in each rendered line, then adjusts letter-spacing to bring every line to the same optical density. The adjustment is invisible when correct — all you notice is that the paragraph looks even.`
@@ -49,6 +49,25 @@ export default function Demo() {
 	const [method, setMethod] = useState<'letter-spacing' | 'word-spacing'>('letter-spacing')
 	const [beforeAfter, setComparing] = useState(false)
 
+	// Blur circle position as fraction of container (0–1)
+	const [circlePos, setCirclePos] = useState({ x: 0.5, y: 0.5 })
+	const dragging = useRef(false)
+	const containerRef = useRef<HTMLDivElement>(null)
+
+	const handleCirclePointerDown = (e: React.PointerEvent) => {
+		e.currentTarget.setPointerCapture(e.pointerId)
+		dragging.current = true
+	}
+	const handleCirclePointerMove = (e: React.PointerEvent) => {
+		if (!dragging.current || !containerRef.current) return
+		const rect = containerRef.current.getBoundingClientRect()
+		setCirclePos({
+			x: Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)),
+			y: Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height)),
+		})
+	}
+	const handleCirclePointerUp = () => { dragging.current = false }
+
 	const dMax = useDeferredValue(maxAdjustment)
 	const dCal = useDeferredValue(calibrationFactor)
 	const dMethod = useDeferredValue(method)
@@ -72,8 +91,9 @@ export default function Demo() {
 				))}
 			</div>
 
-			{/* Inspector wrapper — fixed blur circle at center; compare overlay and button sit inside */}
+			{/* Inspector wrapper — draggable blur circle; compare overlay and button sit inside */}
 			<div
+				ref={containerRef}
 				className="relative pb-8"
 			>
 				<GrayValueText maxAdjustment={dMax} calibrationFactor={dCal} method={dMethod} style={sampleStyle}>
@@ -83,11 +103,14 @@ export default function Demo() {
 					<p aria-hidden style={{ ...sampleStyle, position: 'absolute', top: 0, left: 0, width: '100%', margin: 0, opacity: 0.25, pointerEvents: 'none' }}>{SAMPLE}</p>
 				)}
 				<div
-					aria-hidden
+					aria-label="Drag to inspect"
+					onPointerDown={handleCirclePointerDown}
+					onPointerMove={handleCirclePointerMove}
+					onPointerUp={handleCirclePointerUp}
 					style={{
 						position: 'absolute',
-						left: '50%',
-						top: '50%',
+						left: `${circlePos.x * 100}%`,
+						top: `${circlePos.y * 100}%`,
 						transform: 'translate(-50%, -50%)',
 						width: INSPECTOR_R * 2,
 						height: INSPECTOR_R * 2,
@@ -96,7 +119,8 @@ export default function Demo() {
 						WebkitBackdropFilter: 'blur(7px)',
 						border: '1px solid rgba(255,255,255,0.15)',
 						boxShadow: '0 0 0 1px rgba(0,0,0,0.25)',
-						pointerEvents: 'none',
+						cursor: 'grab',
+						touchAction: 'none',
 					}}
 				/>
 				<BeforeAfterToggle active={beforeAfter} onClick={() => setComparing(v => !v)} />
