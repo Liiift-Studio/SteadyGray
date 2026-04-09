@@ -170,6 +170,7 @@ export function applyGrayValue(
 	const targetDensityOpt = options.targetDensity ?? DEFAULTS.targetDensity
 	const method = options.method ?? DEFAULTS.method
 	const maxAdjustment = options.maxAdjustment ?? DEFAULTS.maxAdjustment
+	const tolerance = options.tolerance ?? DEFAULTS.tolerance
 	const calibrationFactor = options.calibrationFactor ?? DEFAULTS.calibrationFactor
 
 	// --- Pass 1: Reset ---
@@ -366,6 +367,8 @@ export function applyGrayValue(
 	// Clamped to ±maxAdjustment em.
 	const adjustments: number[] = densities.map((density) => {
 		const delta = (targetDensity - density) * calibrationFactor
+		// Skip corrections smaller than the tolerance threshold — not worth applying
+		if (Math.abs(delta) < tolerance) return 0
 		return Math.max(-maxAdjustment, Math.min(maxAdjustment, delta))
 	})
 
