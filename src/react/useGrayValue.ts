@@ -1,5 +1,5 @@
 // steadyGray/src/react/useGrayValue.ts — React hook
-import { useCallback, useLayoutEffect, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { applyGrayValue, getCleanHTML } from '../core/adjust'
 import type { GrayValueOptions } from '../core/types'
 
@@ -41,6 +41,13 @@ export function useGrayValue(options: GrayValueOptions) {
 			ro.disconnect()
 			cancelAnimationFrame(rafId)
 		}
+	}, [run])
+
+
+	// Rerun after all fonts finish loading — measurements taken before font-swap
+	// produce wrong results (Canvas glyph metrics use the fallback font).
+	useEffect(() => {
+		document.fonts.ready.then(run)
 	}, [run])
 
 	return ref
