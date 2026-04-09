@@ -126,6 +126,7 @@ function makeMockCanvas(): HTMLCanvasElement {
 		getContext: () => ({
 			font: '',
 			fillStyle: '' as string,
+			setTransform: () => {},
 			clearRect: () => {},
 			fillRect:  () => {},
 			fillText:  () => {},
@@ -245,6 +246,7 @@ describe('gray-value', () => {
 			getContext: () => ({
 				font: '',
 				fillStyle: '',
+				setTransform: () => {},
 				clearRect: () => {},
 				fillRect:  () => {},
 				fillText:  () => {},
@@ -356,7 +358,7 @@ describe('gray-value', () => {
 		const fullCanvas = {
 			width: 100, height: 10,
 			getContext: () => ({
-				font: '', fillStyle: '', clearRect: () => {}, fillRect: () => {}, fillText: () => {},
+				font: '', fillStyle: '', setTransform: () => {}, clearRect: () => {}, fillRect: () => {}, fillText: () => {},
 				getImageData: () => {
 					const data = new Uint8ClampedArray(100 * 10 * 4)
 					// All black pixels
