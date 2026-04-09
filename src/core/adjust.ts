@@ -1,4 +1,4 @@
-// gray-value/src/core/adjust.ts — canvas-based optical density equalization algorithm
+// steadyGray/src/core/adjust.ts — canvas-based optical density equalization algorithm
 import { GRAY_VALUE_CLASSES, type GrayValueOptions } from './types'
 
 // ─── Pretext (canvas line detection) ─────────────────────────────────────────

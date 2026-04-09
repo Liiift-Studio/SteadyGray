@@ -13,7 +13,7 @@ export function useGrayValue(options: GrayValueOptions) {
 	const optionsRef = useRef(options)
 	optionsRef.current = options
 
-	const { maxAdjustment, calibrationFactor, method } = options
+	const { maxAdjustment, calibrationFactor, method, tolerance, targetDensity, lineDetection } = options
 
 	const run = useCallback(() => {
 		const el = ref.current
@@ -22,7 +22,7 @@ export function useGrayValue(options: GrayValueOptions) {
 			originalHTMLRef.current = getCleanHTML(el)
 		}
 		applyGrayValue(el, originalHTMLRef.current, optionsRef.current)
-	}, [maxAdjustment, calibrationFactor, method])
+	}, [maxAdjustment, calibrationFactor, method, tolerance, targetDensity, lineDetection])
 
 	useLayoutEffect(() => {
 		run()
