@@ -126,7 +126,7 @@ export default function Demo() {
 				<BeforeAfterToggle active={beforeAfter} onClick={() => setComparing(v => !v)} />
 			</div>
 
-			<p className="text-xs opacity-50 italic mt-6">Each line is measured by pixel density and adjusted by ±{maxAdjustment.toFixed(3)}em via {method}.</p>
+			<p className="text-xs opacity-50 italic mt-8" style={{ lineHeight: "1.8" }}>Each line is measured by pixel density and adjusted by ±{maxAdjustment.toFixed(3)}em via {method}.</p>
 		</div>
 	)
 }
