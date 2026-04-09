@@ -60,7 +60,7 @@ export default function Demo() {
 	}
 
 	return (
-		<div className="w-full" style={{ overflow: 'hidden' }}>
+		<div className="w-full">
 			<div className="grid grid-cols-2 gap-6 mb-6">
 				<Slider label="Max adjustment (em)" value={maxAdjustment} min={0.01} max={0.15} step={0.005} onChange={setMaxAdjustment} fmt={v => v.toFixed(3)} />
 				<Slider label="Calibration factor" value={calibrationFactor} min={0.5} max={5} step={0.1} onChange={setCalibrationFactor} fmt={v => v.toFixed(1)} />
