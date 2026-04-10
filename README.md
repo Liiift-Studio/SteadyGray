@@ -18,6 +18,8 @@ npm install @liiift-studio/steadygray
 
 ## Usage
 
+> **Next.js App Router:** this library uses browser APIs. Add `"use client"` to any component file that imports from it.
+
 ### React component
 
 ```tsx
@@ -33,9 +35,12 @@ import { GrayValueText } from '@liiift-studio/steadygray'
 ```tsx
 import { useGrayValue } from '@liiift-studio/steadygray'
 
+// Inside a React component:
 const ref = useGrayValue({ maxAdjustment: 0.05, calibrationFactor: 2 })
-<p ref={ref}>{children}</p>
+return <p ref={ref}>{children}</p>
 ```
+
+The hook re-runs automatically on resize via `ResizeObserver` and after fonts load via `document.fonts.ready`.
 
 ### Vanilla JS
 
@@ -44,10 +49,29 @@ import { applyGrayValue, removeGrayValue, getCleanHTML } from '@liiift-studio/st
 
 const el = document.querySelector('p')
 const original = getCleanHTML(el)
-applyGrayValue(el, original, { maxAdjustment: 0.05, calibrationFactor: 2 })
+const opts = { maxAdjustment: 0.05, calibrationFactor: 2 }
 
-// Later — restore original markup:
-removeGrayValue(el, original)
+function run() {
+  applyGrayValue(el, original, opts)
+}
+
+run()
+document.fonts.ready.then(run)
+
+const ro = new ResizeObserver(() => run())
+ro.observe(el)
+
+// Later — disconnect and restore original markup:
+// ro.disconnect()
+// removeGrayValue(el, original)
+```
+
+### TypeScript
+
+```ts
+import type { GrayValueOptions } from '@liiift-studio/steadygray'
+
+const opts: GrayValueOptions = { targetDensity: 'auto', maxAdjustment: 0.05 }
 ```
 
 ---
@@ -61,7 +85,7 @@ removeGrayValue(el, original)
 | `maxAdjustment` | `0.05` | Maximum spacing correction in em units. Positive and negative adjustments are both clamped to this value |
 | `tolerance` | `0.01` | Minimum density difference before a correction is applied. Lines within this threshold of the target are left untouched |
 | `calibrationFactor` | `2.0` | Correction strength — em spacing change per 1.0 density unit difference. Increase for more aggressive corrections |
-| `lineDetection` | `'bcr'` | `'bcr'` reads actual browser layout — ground truth, works with any font and inline HTML. `'canvas'` uses [`@chenglou/pretext`](https://github.com/chenglou/pretext) for arithmetic line breaking with no forced reflow on resize. Install pretext separately |
+| `lineDetection` | `'bcr'` | `'bcr'` reads actual browser layout — ground truth, works with any font and inline HTML. `'canvas'` uses `@chenglou/pretext` for arithmetic line breaking with no forced reflow on resize (`npm install @chenglou/pretext`). Falls back to `'bcr'` while pretext loads |
 | `as` | `'p'` | HTML element to render. *(React component only)* |
 
 ---
@@ -88,7 +112,7 @@ The package itself has zero runtime dependencies. Do not remove this entry.
 - **Dark mode awareness** — invert the pixel-counting logic when rendering on a dark background, so the density measurement is consistent regardless of color scheme
 - **Configurable canvas DPR** — allow overriding the device pixel ratio used for the measurement canvas, to trade accuracy for performance on high-density displays
 - **Iterative convergence** — apply corrections in multiple passes until all lines converge within `tolerance`, rather than a single-pass linear estimate
-- **Per-paragraph target** — expose a `measureDensity(el)` utility so callers can measure one element and use its density as the target for another
+- **Per-paragraph target** — expose a `measureLineDensity(el)` utility so callers can measure one element and use its density as the target for another
 
 ---
 
