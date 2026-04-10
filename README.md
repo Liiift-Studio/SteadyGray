@@ -1,8 +1,10 @@
 # Steady Gray
 
-Paragraph optical density equalization — measure actual glyph area per line via canvas and adjust letter-spacing or word-spacing to bring every line to the same visual weight. The even grey of a well-set paragraph.
+Compositors call it colour — the aggregate grey of a text block. When some lines are denser than others, the paragraph looks uneven. Steady Gray measures ink pixel density per line by rendering to an off-screen Canvas, then adjusts letter-spacing until every line matches the target. Even colour, line by line.
 
 **[steadygray.com](https://steadygray.com)** · [npm](https://www.npmjs.com/package/@liiift-studio/steadygray) · [GitHub](https://github.com/Liiift-Studio/SteadyGray)
+
+TypeScript · Canvas pixel sampling · React + Vanilla JS
 
 ---
 
@@ -21,7 +23,7 @@ npm install @liiift-studio/steadygray
 ```tsx
 import { GrayValueText } from '@liiift-studio/steadygray'
 
-<GrayValueText targetDensity="auto" method="letter-spacing">
+<GrayValueText maxAdjustment={0.05} calibrationFactor={2}>
   Your paragraph text here...
 </GrayValueText>
 ```
@@ -31,35 +33,42 @@ import { GrayValueText } from '@liiift-studio/steadygray'
 ```tsx
 import { useGrayValue } from '@liiift-studio/steadygray'
 
-function Paragraph({ children }) {
-  const ref = useGrayValue({ targetDensity: 'auto', maxAdjustment: 0.05 })
-  return <p ref={ref}>{children}</p>
-}
+const ref = useGrayValue({ maxAdjustment: 0.05, calibrationFactor: 2 })
+<p ref={ref}>{children}</p>
 ```
 
 ### Vanilla JS
 
 ```ts
-import { applyGrayValue, getCleanHTML } from '@liiift-studio/steadygray'
+import { applyGrayValue, removeGrayValue, getCleanHTML } from '@liiift-studio/steadygray'
 
 const el = document.querySelector('p')
-const originalHTML = getCleanHTML(el)
+const original = getCleanHTML(el)
+applyGrayValue(el, original, { maxAdjustment: 0.05, calibrationFactor: 2 })
 
-applyGrayValue(el, originalHTML, { targetDensity: 'auto' })
+// Later — restore original markup:
+removeGrayValue(el, original)
 ```
 
 ---
 
 ## Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `lineDetection` | `'bcr' \| 'canvas'` | `'bcr'` | Line detection method — `'bcr'` reads browser layout; `'canvas'` uses `@chenglou/pretext` for zero-reflow resize |
-| `targetDensity` | `number \| 'auto'` | `'auto'` | Target optical density ratio (0–1). `'auto'` uses the average of all measured lines |
-| `method` | `'letter-spacing' \| 'word-spacing'` | `'letter-spacing'` | CSS spacing property to adjust per line |
-| `maxAdjustment` | `number` | `0.05` | Maximum spacing adjustment in em units |
-| `tolerance` | `number` | `0.01` | Acceptable density difference before a line is considered equalized |
-| `calibrationFactor` | `number` | `2.0` | em spacing change per 1.0 density unit difference |
+| Option | Default | Description |
+|--------|---------|-------------|
+| `targetDensity` | `'auto'` | Target optical density ratio (0–1). `'auto'` uses the average of all measured lines |
+| `method` | `'letter-spacing'` | CSS spacing property to adjust per line: `'letter-spacing'` or `'word-spacing'` |
+| `maxAdjustment` | `0.05` | Maximum spacing correction in em units. Positive and negative adjustments are both clamped to this value |
+| `tolerance` | `0.01` | Minimum density difference before a correction is applied. Lines within this threshold of the target are left untouched |
+| `calibrationFactor` | `2.0` | Correction strength — em spacing change per 1.0 density unit difference. Increase for more aggressive corrections |
+| `lineDetection` | `'bcr'` | `'bcr'` reads actual browser layout — ground truth, works with any font and inline HTML. `'canvas'` uses [`@chenglou/pretext`](https://github.com/chenglou/pretext) for arithmetic line breaking with no forced reflow on resize. Install pretext separately |
+| `as` | `'p'` | HTML element to render. *(React component only)* |
+
+---
+
+## How it works
+
+Each detected line of text is rendered to an off-screen Canvas at the correct font size, weight, and family. The raw pixel data (`getImageData`) is read and ink pixels are counted — any pixel with alpha above a threshold is considered ink. The ratio of ink pixels to total pixels is the line's optical density. The average across all lines becomes the target (or you can set `targetDensity` manually). Each line then receives a `letter-spacing` (or `word-spacing`) correction proportional to its deviation from the target, clamped to `maxAdjustment`. The correction re-runs on resize and after fonts finish loading (`document.fonts.ready`).
 
 ---
 
@@ -70,6 +79,16 @@ applyGrayValue(el, originalHTML, { targetDensity: 'auto' })
 `package.json` at the repo root lists `next` as a devDependency. This is a **Vercel detection workaround** — not a real dependency of the npm package. Vercel's build system inspects the root `package.json` to detect the framework; without `next` present it falls back to a static build and skips the Next.js pipeline, breaking the `/site` subdirectory deploy.
 
 The package itself has zero runtime dependencies. Do not remove this entry.
+
+---
+
+## Future improvements
+
+- **Variable axis equalization** — use `wght` or `wdth` instead of letter-spacing as the equalization mechanism, for fonts where spacing is less flexible than weight
+- **Dark mode awareness** — invert the pixel-counting logic when rendering on a dark background, so the density measurement is consistent regardless of color scheme
+- **Configurable canvas DPR** — allow overriding the device pixel ratio used for the measurement canvas, to trade accuracy for performance on high-density displays
+- **Iterative convergence** — apply corrections in multiple passes until all lines converge within `tolerance`, rather than a single-pass linear estimate
+- **Per-paragraph target** — expose a `measureDensity(el)` utility so callers can measure one element and use its density as the target for another
 
 ---
 
