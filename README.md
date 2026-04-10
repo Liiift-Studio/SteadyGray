@@ -84,7 +84,7 @@ const opts: GrayValueOptions = { targetDensity: 'auto', maxAdjustment: 0.05 }
 | `method` | `'letter-spacing'` | CSS spacing property to adjust per line: `'letter-spacing'` or `'word-spacing'` |
 | `maxAdjustment` | `0.05` | Maximum spacing correction in em units. Positive and negative adjustments are both clamped to this value |
 | `tolerance` | `0.01` | Minimum density difference before a correction is applied. Lines within this threshold of the target are left untouched |
-| `calibrationFactor` | `2.0` | Correction strength — em spacing change per 1.0 density unit difference. Increase for more aggressive corrections |
+| `calibrationFactor` | `2` | Correction strength — em spacing change per 1.0 density unit difference. Increase for more aggressive corrections |
 | `lineDetection` | `'bcr'` | `'bcr'` reads actual browser layout — ground truth, works with any font and inline HTML. `'canvas'` uses `@chenglou/pretext` for arithmetic line breaking with no forced reflow on resize (`npm install @chenglou/pretext`). Falls back to `'bcr'` while pretext loads |
 | `as` | `'p'` | HTML element to render. *(React component only)* |
 
@@ -112,7 +112,7 @@ The package itself has zero runtime dependencies. Do not remove this entry.
 - **Dark mode awareness** — invert the pixel-counting logic when rendering on a dark background, so the density measurement is consistent regardless of color scheme
 - **Configurable canvas DPR** — allow overriding the device pixel ratio used for the measurement canvas, to trade accuracy for performance on high-density displays
 - **Iterative convergence** — apply corrections in multiple passes until all lines converge within `tolerance`, rather than a single-pass linear estimate
-- **Per-paragraph target** — expose a `measureLineDensity(el)` utility so callers can measure one element and use its density as the target for another
+- **Per-paragraph target** — `measureLineDensity` is exported as a low-level canvas primitive; a high-level `measureDensity(el)` wrapper that takes just an element would allow cross-paragraph normalization without manually building font strings and canvas contexts
 
 ---
 
