@@ -1,7 +1,7 @@
 {
 	"name": "@liiift-studio/steadygray",
-	"version": "0.0.20",
-	"description": "Paragraph optical density equalization — measure actual glyph area per line and equalize visual density across all lines",
+	"version": "1.0.0",
+	"description": "Paragraph optical density equalization \u2014 measure actual glyph area per line and equalize visual density across all lines",
 	"type": "module",
 	"main": "dist/index.cjs",
 	"module": "dist/index.js",
@@ -54,9 +54,14 @@
 		"typography",
 		"gray-value",
 		"optical-density",
+		"glyph-area",
+		"canvas",
+		"letter-spacing",
 		"typesetting",
+		"zero-dependencies",
 		"react",
-		"typescript"
+		"typescript",
+		"css"
 	],
 	"author": "Quinn Keaveney <quinn@liiift.studio>",
 	"license": "MIT",
