@@ -60,18 +60,22 @@ function getCanvasFontStyle(el: HTMLElement): string {
  * Measures the optical density (ink pixel ratio) of a single line of text
  * by rendering it to a Canvas and counting non-white pixels.
  *
+ * The canvas is sized to the TEXT's own rendered width (via measureText), NOT the
+ * container width. This gives the intrinsic character density of the line —
+ * independent of whether the line is long or short. Using container width was
+ * a bug: short lines would measure as sparse just because of trailing white space,
+ * causing the algorithm to over-tighten them.
+ *
  * Returns a value in [0, 1] where 0 = no ink and 1 = fully black.
  *
- * @param text        - The text content of the line
- * @param fontStyle   - Canvas-compatible font string (e.g. "400 18px Georgia")
- * @param targetWidth - Width of the canvas in CSS pixels
- * @param lineHeight  - Height of the canvas in CSS pixels
- * @param canvas      - Canvas element to render into (reused across calls)
+ * @param text       - The text content of the line
+ * @param fontStyle  - Canvas-compatible font string (e.g. "400 18px Georgia")
+ * @param lineHeight - Height of the canvas in CSS pixels
+ * @param canvas     - Canvas element to render into (reused across calls)
  */
 export function measureLineDensity(
 	text: string,
 	fontStyle: string,
-	targetWidth: number,
 	lineHeight: number,
 	canvas: HTMLCanvasElement,
 ): number {
@@ -80,17 +84,25 @@ export function measureLineDensity(
 	const ctx = canvas.getContext('2d', { willReadFrequently: true })
 	if (!ctx) return 0
 
+	// Measure text width first — font must be set before measureText for accurate metrics.
+	// Canvas width is set to the text's own rendered width, not the container width.
+	// This normalizes density to the character ink area, not the full column area.
+	ctx.font = fontStyle
+	const textWidth = ctx.measureText(text).width
+	if (textWidth <= 0) return 0
+
 	// Scale canvas by devicePixelRatio so text renders at full resolution on retina displays.
 	// Without this, text at 2× DPR renders at half size → wrong density readings.
 	const dpr = typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1
-	canvas.width = Math.max(1, Math.ceil(targetWidth * dpr))
+	canvas.width = Math.max(1, Math.ceil(textWidth * dpr))
 	canvas.height = Math.max(1, Math.ceil(lineHeight * dpr))
 
-	// setTransform resets the matrix (avoids accumulation when the canvas is reused)
+	// setTransform resets the matrix (avoids accumulation when the canvas is reused).
+	// Re-apply font after canvas resize — resize resets context state.
 	ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-	ctx.clearRect(0, 0, targetWidth, lineHeight)
+	ctx.clearRect(0, 0, textWidth, lineHeight)
 	ctx.fillStyle = 'white'
-	ctx.fillRect(0, 0, targetWidth, lineHeight)
+	ctx.fillRect(0, 0, textWidth, lineHeight)
 	ctx.fillStyle = 'black'
 	ctx.font = fontStyle
 	// Approximate baseline at 75% of line height
@@ -341,13 +353,14 @@ export function applyGrayValue(
 	}
 
 	// --- Pass 4: Measure density per line ---
+	// Each line is measured against its own rendered text width (not containerWidth).
+	// This gives the intrinsic character ink density independent of line length.
 	const canvas: HTMLCanvasElement = _canvas ?? document.createElement('canvas')
 
 	const densities: number[] = lines.map((line) =>
 		measureLineDensity(
 			line.text,
 			fontStyle,
-			containerWidth,
 			line.height || fontSize,
 			canvas,
 		),

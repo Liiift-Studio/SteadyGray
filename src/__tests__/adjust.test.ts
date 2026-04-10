@@ -115,14 +115,22 @@ function makeElement(html: string): HTMLElement {
  *  - odd calls  → high density (0.06, representing a tight/dense line)
  *  - even calls → low density  (0.02, representing a loose/sparse line)
  *
- * Canvas dimensions are fixed at CONTAINER_WIDTH × LINE_HEIGHT pixels.
+ * canvas.width and canvas.height are mutable so that measureLineDensity can
+ * resize the canvas to the text's rendered width before calling getImageData.
+ * getImageData uses the requested (w, h) dimensions so density ratios are
+ * stable regardless of canvas size.
+ * measureText returns text.length × 8 — a stable proxy for text width in tests.
  */
 function makeMockCanvas(): HTMLCanvasElement {
 	let callCount = 0
+	let _width = CONTAINER_WIDTH
+	let _height = LINE_HEIGHT
 
 	const mockCanvas = {
-		width: CONTAINER_WIDTH,
-		height: LINE_HEIGHT,
+		get width()  { return _width },
+		set width(v: number)  { _width = v },
+		get height() { return _height },
+		set height(v: number) { _height = v },
 		getContext: () => ({
 			font: '',
 			fillStyle: '' as string,
@@ -130,11 +138,12 @@ function makeMockCanvas(): HTMLCanvasElement {
 			clearRect: () => {},
 			fillRect:  () => {},
 			fillText:  () => {},
-			getImageData: () => {
+			measureText: (text: string) => ({ width: text.length * 8 }),
+			getImageData: (_x: number, _y: number, w: number, h: number) => {
 				callCount++
 				// Alternate: 1st call = dense (0.06), 2nd call = sparse (0.02), etc.
 				const density = callCount % 2 === 1 ? 0.06 : 0.02
-				const pixels = CONTAINER_WIDTH * LINE_HEIGHT
+				const pixels = w * h
 				const data = new Uint8ClampedArray(pixels * 4)
 				const inkCount = Math.floor(density * pixels)
 				// First inkCount pixels → black ink
@@ -147,7 +156,6 @@ function makeMockCanvas(): HTMLCanvasElement {
 				}
 				return { data }
 			},
-			canvas: { width: CONTAINER_WIDTH, height: LINE_HEIGHT },
 		}),
 	}
 
@@ -237,9 +245,9 @@ describe('gray-value', () => {
 		expect(el.innerHTML).toContain('bold')
 	})
 
-	// 7. measureLineDensity returns 0 for a canvas that returns no pixel data
-	it('measureLineDensity returns 0 for empty canvas content', () => {
-		// Canvas mock that returns a zero-length data array → totalPixels = 0
+	// 7. measureLineDensity returns 0 for empty text (textWidth = 0 → early return)
+	it('measureLineDensity returns 0 for empty text', () => {
+		// measureText returns width 0 for '' → measureLineDensity returns 0 early
 		const blankCanvas = {
 			width: 1,
 			height: 1,
@@ -250,18 +258,18 @@ describe('gray-value', () => {
 				clearRect: () => {},
 				fillRect:  () => {},
 				fillText:  () => {},
+				measureText: (_text: string) => ({ width: 0 }),
 				getImageData: () => ({ data: new Uint8ClampedArray(0) }),
-				canvas: { width: 1, height: 1 },
 			}),
 		} as unknown as HTMLCanvasElement
 
-		const density = measureLineDensity('', '400 16px serif', 1, 1, blankCanvas)
+		const density = measureLineDensity('', '400 16px serif', 1, blankCanvas)
 		expect(density).toBe(0)
 	})
 
 	// 8. measureLineDensity returns value in [0, 1]
 	it('measureLineDensity returns a value between 0 and 1 inclusive', () => {
-		const density = measureLineDensity('Hello world', '400 16px serif', 200, 20, makeMockCanvas())
+		const density = measureLineDensity('Hello world', '400 16px serif', 20, makeMockCanvas())
 		expect(density).toBeGreaterThanOrEqual(0)
 		expect(density).toBeLessThanOrEqual(1)
 	})
@@ -355,22 +363,27 @@ describe('gray-value', () => {
 
 	// 16. measureLineDensity: canvas with all opaque pixels returns value > 0
 	it('measureLineDensity returns > 0 for fully opaque content', () => {
+		let _w = 100
+		let _h = 10
 		const fullCanvas = {
-			width: 100, height: 10,
+			get width()  { return _w },
+			set width(v: number)  { _w = v },
+			get height() { return _h },
+			set height(v: number) { _h = v },
 			getContext: () => ({
 				font: '', fillStyle: '', setTransform: () => {}, clearRect: () => {}, fillRect: () => {}, fillText: () => {},
-				getImageData: () => {
-					const data = new Uint8ClampedArray(100 * 10 * 4)
+				measureText: (text: string) => ({ width: text.length * 8 }),
+				getImageData: (_x: number, _y: number, w: number, h: number) => {
+					const data = new Uint8ClampedArray(w * h * 4)
 					// All black pixels
 					for (let i = 0; i < data.length; i += 4) {
 						data[i] = 0; data[i + 1] = 0; data[i + 2] = 0; data[i + 3] = 255
 					}
 					return { data }
 				},
-				canvas: { width: 100, height: 10 },
 			}),
 		} as unknown as HTMLCanvasElement
-		const density = measureLineDensity('Hello world', '400 16px serif', 100, 10, fullCanvas)
+		const density = measureLineDensity('Hello world', '400 16px serif', 10, fullCanvas)
 		expect(density).toBeGreaterThan(0)
 	})
 
