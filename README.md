@@ -25,10 +25,12 @@ npm install @liiift-studio/steadygray
 ```tsx
 import { GrayValueText } from '@liiift-studio/steadygray'
 
-<GrayValueText maxAdjustment={0.05} calibrationFactor={2}>
+<GrayValueText maxAdjustment={0.05} calibrationFactor={2} linePreservation="scale">
   Your paragraph text here...
 </GrayValueText>
 ```
+
+`linePreservation="scale"` prevents line overflow by applying a `scaleX` transform after the spacing correction. Omit it if slight overflow is acceptable (e.g. when the element already has `overflow-x: hidden`).
 
 ### React hook
 
@@ -71,7 +73,7 @@ ro.observe(el)
 ```ts
 import type { GrayValueOptions } from '@liiift-studio/steadygray'
 
-const opts: GrayValueOptions = { targetDensity: 0.35, maxAdjustment: 0.08 }
+const opts: GrayValueOptions = { targetDensity: 0.35, maxAdjustment: 0.05, linePreservation: 'scale' }
 ```
 
 ---
@@ -86,6 +88,7 @@ const opts: GrayValueOptions = { targetDensity: 0.35, maxAdjustment: 0.08 }
 | `tolerance` | `0.01` | Minimum density difference before a correction is applied. Lines within this threshold of the target are left untouched |
 | `calibrationFactor` | `2` | Correction strength — em spacing change per 1.0 density unit difference. Increase for more aggressive corrections |
 | `lineDetection` | `'bcr'` | `'bcr'` reads actual browser layout — ground truth, works with any font and inline HTML. `'canvas'` uses `@chenglou/pretext` for arithmetic line breaking with no forced reflow on resize (`npm install @chenglou/pretext`). Falls back to `'bcr'` while pretext loads |
+| `linePreservation` | `'none'` | `'none'` — line widths vary with the spacing correction (bounded by `maxAdjustment`). `'scale'` — applies a `scaleX` transform after correction so every line occupies exactly its original width; the density difference remains visible in glyph spacing but no line ever overflows the container |
 | `as` | `'p'` | HTML element to render. *(React component only)* |
 
 ---
@@ -93,6 +96,10 @@ const opts: GrayValueOptions = { targetDensity: 0.35, maxAdjustment: 0.08 }
 ## How it works
 
 Each detected line of text is rendered to an off-screen Canvas at the correct font size, weight, and family. The raw pixel data (`getImageData`) is read and ink pixels are counted — any pixel with alpha above a threshold is considered ink. The ratio of ink pixels to total pixels is the line's optical density. The average across all lines becomes the target (or you can set `targetDensity` manually). Each line then receives a `letter-spacing` (or `word-spacing`) correction proportional to its deviation from the target, clamped to `maxAdjustment`. The correction re-runs on resize and after fonts finish loading (`document.fonts.ready`).
+
+**Line break safety:** Line breaks are always derived from the browser's natural layout — each run starts from the original HTML snapshot, detects lines at zero spacing, then locks them with `white-space: nowrap`. Word breaks never change as a result of the density correction.
+
+**Width overflow:** The spacing correction intentionally changes each line's visual width. The maximum change is `maxAdjustment × characterCount`. At the default `maxAdjustment: 0.05em` and 60 characters per line at 16px, peak overflow is approximately 48px. Use `linePreservation: 'scale'` to prevent overflow entirely, or add `overflow-x: hidden` to the element's CSS if a small amount of clipping is acceptable.
 
 ---
 

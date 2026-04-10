@@ -174,6 +174,7 @@ export function applyGrayValue(
 	const maxAdjustment = options.maxAdjustment ?? DEFAULTS.maxAdjustment
 	const tolerance = options.tolerance ?? DEFAULTS.tolerance
 	const calibrationFactor = options.calibrationFactor ?? DEFAULTS.calibrationFactor
+	const linePreservation = options.linePreservation ?? 'none'
 
 	// --- Pass 1: Reset ---
 	element.innerHTML = originalHTML
@@ -402,6 +403,27 @@ export function applyGrayValue(
 	})
 
 	element.innerHTML = html
+
+	// --- Optional Pass 8: Scale preservation ---
+	// After spacing correction, restore each line to the container's natural width
+	// via a CSS scaleX transform. The density correction remains visually present
+	// (glyph spacing ratios differ), but lines never overflow or fall short of the edge.
+	if (linePreservation === 'scale') {
+		const lineSpanEls = Array.from(
+			element.querySelectorAll<HTMLElement>(`.${GRAY_VALUE_CLASSES.line}`)
+		)
+		// Batch read: measure corrected widths in a single layout pass
+		const correctedWidths = lineSpanEls.map(span => span.getBoundingClientRect().width)
+		// Batch write: apply scaleX to restore each line to containerWidth
+		lineSpanEls.forEach((span, i) => {
+			const cw = correctedWidths[i]
+			if (cw > 0.5 && Math.abs(cw - containerWidth) > 0.5) {
+				span.style.width = `${containerWidth}px`
+				span.style.transform = `scaleX(${(containerWidth / cw).toFixed(6)})`
+				span.style.transformOrigin = 'left center'
+			}
+		})
+	}
 
 	// Restore scroll position after DOM mutations
 	requestAnimationFrame(() => {

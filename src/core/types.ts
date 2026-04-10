@@ -45,6 +45,22 @@ export interface GrayValueOptions {
 	 * Default: 2.0
 	 */
 	calibrationFactor?: number
+	/**
+	 * Line width preservation strategy after the spacing correction is applied. Default: 'none'
+	 *
+	 * Density equalization adjusts letter-spacing per line, which alters each line's visual width.
+	 * Lines that receive positive spacing grow wider than the container; lines that receive
+	 * negative spacing leave a gap. Both are bounded by `maxAdjustment`.
+	 *
+	 * - **'none'** (default) — no compensation. Line widths vary up to ±maxAdjustment × charCount.
+	 *   Suitable when `maxAdjustment` is small (≤ 0.05em) and slight overflow is acceptable.
+	 *
+	 * - **'scale'** — after applying spacing, a CSS `scaleX` transform is added to each line so it
+	 *   occupies exactly its original width. The density correction remains visible as a change in
+	 *   glyph spacing ratio, but lines never overflow the container. Slightly alters glyph
+	 *   proportions at large correction values.
+	 */
+	linePreservation?: 'none' | 'scale'
 }
 
 /** CSS class names injected by gray-value — use these to target generated markup */
