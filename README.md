@@ -71,7 +71,7 @@ ro.observe(el)
 ```ts
 import type { GrayValueOptions } from '@liiift-studio/steadygray'
 
-const opts: GrayValueOptions = { targetDensity: 'auto', maxAdjustment: 0.05 }
+const opts: GrayValueOptions = { targetDensity: 0.35, maxAdjustment: 0.08 }
 ```
 
 ---
