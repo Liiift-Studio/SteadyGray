@@ -25,7 +25,7 @@ const _fontCache = new Map<string, OpentypeFont | null>()
 function tryLoadOpentype(): void {
 	if (_opentype !== null || _opentypeLoading) return
 	_opentypeLoading = true
-	import('opentype.js' as string)
+	import(/* @vite-ignore */ 'opentype.js' as string)
 		.then((m) => { _opentype = m as OpentypeModule })
 		.catch(() => {
 			console.warn('[steadygray] densityMode: "glyph-path" requires opentype.js — falling back to canvas')
@@ -148,6 +148,24 @@ function measureLineDensityGlyph(
 	return Math.min(1, inkArea / totalArea)
 }
 
+// ─── Syllable (optional peer dep) ─────────────────────────────────────────────
+type SyllableModule = { syllable: (word: string) => number } | { default: (word: string) => number }
+let _syllable: ((word: string) => number) | null = null
+let _syllableLoading = false
+
+function tryLoadSyllable(): void {
+	if (_syllable !== null || _syllableLoading) return
+	_syllableLoading = true
+	import(/* @vite-ignore */ 'syllable' as string)
+		.then((m) => {
+			const mod = m as SyllableModule
+			_syllable = 'syllable' in mod ? mod.syllable : (mod as { default: (w: string) => number }).default
+		})
+		.catch(() => {
+			console.warn('[steadygray] complexity: "syllable" requires the `syllable` package — falling back to "word-length"')
+		})
+}
+
 // ─── Pretext (canvas line detection) ─────────────────────────────────────────
 
 type PretextModule = {
@@ -184,6 +202,9 @@ const DEFAULTS = {
 	maxAdjustment: 0.05,
 	tolerance: 0.01,
 	calibrationFactor: 2.0,
+	mode: 'equalize' as const,
+	complexity: 'word-length' as const,
+	strength: 0.5,
 }
 
 /**
@@ -363,9 +384,15 @@ export function applyGrayValue(
 	const calibrationFactor = options.calibrationFactor ?? DEFAULTS.calibrationFactor
 	const linePreservation = options.linePreservation ?? 'none'
 	const densityMode = options.densityMode ?? 'canvas'
+	const mode = options.mode ?? DEFAULTS.mode
+	const complexity = options.complexity ?? DEFAULTS.complexity
+	const strength = Math.max(0, Math.min(1, options.strength ?? DEFAULTS.strength))
 
 	// Kick off opentype.js load when glyph-path mode is requested
 	if (densityMode === 'glyph-path') tryLoadOpentype()
+
+	// Kick off syllable load when readability mode requests it
+	if (mode === 'readability' && complexity === 'syllable') tryLoadSyllable()
 
 	// --- Pass 1: Reset ---
 	element.innerHTML = originalHTML
@@ -569,13 +596,44 @@ export function applyGrayValue(
 	}
 
 	// --- Pass 6: Calculate per-line spacing adjustment (linear approximation) ---
-	// delta = (target - density) * calibrationFactor
-	// Positive delta → line is too sparse → increase spacing
-	// Negative delta → line is too dense → decrease spacing
+	// Compute per-line density targets.
+	// In 'equalize' mode all lines share the same target.
+	// In 'readability' mode, complex lines get a higher target so the algorithm
+	// opens them up slightly more; simple lines get a lower target.
+	let perLineTargets: number[]
+
+	if (mode === 'readability') {
+		// Compute per-line cognitive complexity
+		const complexityScores = lines.map((line) => {
+			const words = line.text.split(/\s+/).filter(Boolean)
+			if (words.length === 0) return 0
+			if (complexity === 'syllable' && _syllable !== null) {
+				return words.reduce((sum, w) => sum + _syllable!(w), 0) / words.length
+			}
+			// 'word-length' (default) and 'pos' fallback
+			return words.reduce((sum, w) => sum + w.length, 0) / words.length
+		})
+
+		const minC = Math.min(...complexityScores)
+		const maxC = Math.max(...complexityScores)
+		const rangeC = maxC - minC || 1
+
+		// Normalize to [0, 1]. Complex lines push the per-line target UP (more spacing);
+		// simple lines push it DOWN (less spacing). The range is ±maxAdjustment at strength=1.
+		perLineTargets = complexityScores.map((c) => {
+			const nc = (c - minC) / rangeC // 0 = simplest, 1 = most complex
+			return targetDensity + (nc - 0.5) * strength * maxAdjustment * 2
+		})
+	} else {
+		perLineTargets = densities.map(() => targetDensity)
+	}
+
+	// Per-line spacing adjustment (linear approximation).
+	// delta = (perLineTarget - density) * calibrationFactor
+	// Positive delta → increase spacing; negative → decrease spacing.
 	// Clamped to ±maxAdjustment em.
-	const adjustments: number[] = densities.map((density) => {
-		const delta = (targetDensity - density) * calibrationFactor
-		// Skip corrections smaller than the tolerance threshold — not worth applying
+	const adjustments: number[] = densities.map((density, i) => {
+		const delta = (perLineTargets[i] - density) * calibrationFactor
 		if (Math.abs(delta) < tolerance) return 0
 		return Math.max(-maxAdjustment, Math.min(maxAdjustment, delta))
 	})

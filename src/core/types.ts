@@ -80,6 +80,37 @@ export interface GrayValueOptions {
 	 *   proportions at large correction values.
 	 */
 	linePreservation?: 'none' | 'scale'
+
+	/**
+	 * Algorithm mode. Default: 'equalize'
+	 *
+	 * - **'equalize'** (default) — bring all lines toward the same target density.
+	 *
+	 * - **'readability'** — per-line cognitive complexity weighting. Instead of
+	 *   targeting the same density on every line, complex lines (long words / high
+	 *   syllable count) receive a higher spacing target so the algorithm opens them
+	 *   up slightly more. Simple lines receive a lower target. The paragraph looks
+	 *   nearly uniform but is reading-optimized rather than purely optically even.
+	 */
+	mode?: 'equalize' | 'readability'
+
+	/**
+	 * Complexity metric used in readability mode. Default: 'word-length'
+	 *
+	 * - **'word-length'** — average characters per word (zero deps, effective).
+	 * - **'syllable'** — average syllables per word. Requires `npm install syllable`.
+	 *   Falls back to 'word-length' if not installed.
+	 * - **'pos'** — content vs function word ratio. Not yet implemented; falls back
+	 *   to 'word-length'. Reserved for a future version with the `compromise` package.
+	 */
+	complexity?: 'word-length' | 'syllable' | 'pos'
+
+	/**
+	 * How aggressively to weight complex lines in readability mode. Range 0–1.
+	 * At 0: same as 'equalize'. At 1: maximum complexity weighting.
+	 * Default: 0.5
+	 */
+	strength?: number
 }
 
 /** CSS class names injected by gray-value — use these to target generated markup */
