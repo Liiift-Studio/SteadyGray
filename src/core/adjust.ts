@@ -1,6 +1,153 @@
 // steadyGray/src/core/adjust.ts — canvas-based optical density equalization algorithm
 import { GRAY_VALUE_CLASSES, type GrayValueOptions } from './types'
 
+// ─── OpenType.js (optional peer dep for glyph-path mode) ──────────────────────
+
+type OpentypeFont = {
+	unitsPerEm: number
+	charToGlyph: (ch: string) => OpentypeGlyph
+}
+type OpentypeGlyphPath = {
+	commands: Array<
+		| { type: 'M' | 'L'; x: number; y: number }
+		| { type: 'C'; x1: number; y1: number; x2: number; y2: number; x: number; y: number }
+		| { type: 'Q'; x1: number; y1: number; x: number; y: number }
+		| { type: 'Z' }
+	>
+}
+type OpentypeGlyph = { path: OpentypeGlyphPath; advanceWidth: number }
+type OpentypeModule = { load: (url: string, cb: (err: Error | null, font?: OpentypeFont) => void) => void }
+
+let _opentype: OpentypeModule | null = null
+let _opentypeLoading = false
+const _fontCache = new Map<string, OpentypeFont | null>()
+
+function tryLoadOpentype(): void {
+	if (_opentype !== null || _opentypeLoading) return
+	_opentypeLoading = true
+	import('opentype.js' as string)
+		.then((m) => { _opentype = m as OpentypeModule })
+		.catch(() => {
+			console.warn('[steadygray] densityMode: "glyph-path" requires opentype.js — falling back to canvas')
+		})
+}
+
+/**
+ * Load an OpenType font from a URL and cache the result.
+ * Calls `cb` with the font when ready, or null on error.
+ */
+function loadFont(url: string, cb: (font: OpentypeFont | null) => void): void {
+	if (_fontCache.has(url)) { cb(_fontCache.get(url) ?? null); return }
+	if (!_opentype) { cb(null); return }
+	_opentype.load(url, (err, font) => {
+		const result = err || !font ? null : font
+		_fontCache.set(url, result)
+		cb(result)
+	})
+}
+
+/**
+ * Compute the approximate filled area of a glyph path using the shoelace formula.
+ * Cubic and quadratic bezier curves are approximated by sampling 8 points per segment.
+ * Returns area in font units squared.
+ *
+ * @param glyph - opentype.js glyph with a .path.commands array
+ */
+function glyphPathArea(glyph: OpentypeGlyph): number {
+	const commands = glyph.path.commands
+	let area = 0
+	let contourPoints: Array<[number, number]> = []
+	let cx = 0, cy = 0 // current pen position
+
+	const flushContour = () => {
+		// Shoelace formula for a polygon
+		const n = contourPoints.length
+		if (n < 3) { contourPoints = []; return }
+		let sum = 0
+		for (let i = 0; i < n; i++) {
+			const [x0, y0] = contourPoints[i]
+			const [x1, y1] = contourPoints[(i + 1) % n]
+			sum += x0 * y1 - x1 * y0
+		}
+		area += Math.abs(sum / 2)
+		contourPoints = []
+	}
+
+	const STEPS = 8
+
+	for (const cmd of commands) {
+		if (cmd.type === 'M') {
+			if (contourPoints.length > 0) flushContour()
+			cx = cmd.x; cy = cmd.y
+			contourPoints.push([cx, cy])
+		} else if (cmd.type === 'L') {
+			cx = cmd.x; cy = cmd.y
+			contourPoints.push([cx, cy])
+		} else if (cmd.type === 'C') {
+			// Cubic bezier — sample STEPS intermediate points
+			const x0 = cx, y0 = cy
+			for (let s = 1; s <= STEPS; s++) {
+				const t = s / STEPS
+				const u = 1 - t
+				const bx = u*u*u*x0 + 3*u*u*t*cmd.x1 + 3*u*t*t*cmd.x2 + t*t*t*cmd.x
+				const by = u*u*u*y0 + 3*u*u*t*cmd.y1 + 3*u*t*t*cmd.y2 + t*t*t*cmd.y
+				contourPoints.push([bx, by])
+			}
+			cx = cmd.x; cy = cmd.y
+		} else if (cmd.type === 'Q') {
+			// Quadratic bezier — sample STEPS intermediate points
+			const x0 = cx, y0 = cy
+			for (let s = 1; s <= STEPS; s++) {
+				const t = s / STEPS
+				const u = 1 - t
+				const bx = u*u*x0 + 2*u*t*cmd.x1 + t*t*cmd.x
+				const by = u*u*y0 + 2*u*t*cmd.y1 + t*t*cmd.y
+				contourPoints.push([bx, by])
+			}
+			cx = cmd.x; cy = cmd.y
+		} else if (cmd.type === 'Z') {
+			flushContour()
+		}
+	}
+
+	if (contourPoints.length > 0) flushContour()
+	return area
+}
+
+/**
+ * Measure line density using glyph path areas from an OpenType font.
+ * Returns a value in [0, 1] where 0 = no ink and 1 = fully covered.
+ *
+ * @param text      - Text content of the line
+ * @param font      - Loaded opentype.js font object
+ * @param fontSize  - Rendered font size in CSS pixels
+ * @param lineHeight - Rendered line height in CSS pixels
+ */
+function measureLineDensityGlyph(
+	text: string,
+	font: OpentypeFont,
+	fontSize: number,
+	lineHeight: number,
+): number {
+	const upm = font.unitsPerEm
+	const scale = fontSize / upm
+	const scale2 = scale * scale // area scales as the square of the linear scale
+
+	let inkArea = 0
+	let textWidth = 0
+
+	for (const ch of text) {
+		if (/\s/.test(ch)) continue
+		const glyph = font.charToGlyph(ch)
+		inkArea += glyphPathArea(glyph) * scale2
+		textWidth += (glyph.advanceWidth ?? 0) * scale
+	}
+
+	if (textWidth <= 0 || lineHeight <= 0) return 0
+	const totalArea = textWidth * lineHeight
+	return Math.min(1, inkArea / totalArea)
+}
+
 // ─── Pretext (canvas line detection) ─────────────────────────────────────────
 
 type PretextModule = {
@@ -57,8 +204,25 @@ function getCanvasFontStyle(el: HTMLElement): string {
 }
 
 /**
+ * Compute the relative luminance of an sRGB colour string (e.g. 'rgb(30, 30, 30)').
+ * Returns a value in [0, 1] where 0 is black and 1 is white.
+ * Used to detect dark-background contexts so canvas ink counting can be adapted.
+ *
+ * @param cssColor - Computed CSS color string from getComputedStyle
+ */
+function relativeLuminance(cssColor: string): number {
+	const m = cssColor.match(/\d+/g)
+	if (!m || m.length < 3) return 1 // default to light if unparseable
+	const [r, g, b] = m.map((v) => {
+		const c = parseInt(v, 10) / 255
+		return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+	})
+	return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+/**
  * Measures the optical density (ink pixel ratio) of a single line of text
- * by rendering it to a Canvas and counting non-white pixels.
+ * by rendering it to a Canvas and counting non-background pixels.
  *
  * The canvas is sized to the TEXT's own rendered width (via measureText), NOT the
  * container width. This gives the intrinsic character density of the line —
@@ -66,18 +230,20 @@ function getCanvasFontStyle(el: HTMLElement): string {
  * a bug: short lines would measure as sparse just because of trailing white space,
  * causing the algorithm to over-tighten them.
  *
- * Returns a value in [0, 1] where 0 = no ink and 1 = fully black.
+ * Returns a value in [0, 1] where 0 = no ink and 1 = fully covered.
  *
  * @param text       - The text content of the line
  * @param fontStyle  - Canvas-compatible font string (e.g. "400 18px Georgia")
  * @param lineHeight - Height of the canvas in CSS pixels
  * @param canvas     - Canvas element to render into (reused across calls)
+ * @param darkMode   - When true, text is drawn light-on-dark and light pixels are counted as ink
  */
 export function measureLineDensity(
 	text: string,
 	fontStyle: string,
 	lineHeight: number,
 	canvas: HTMLCanvasElement,
+	darkMode = false,
 ): number {
 	// willReadFrequently tells Chrome to use a CPU-backed canvas for this context,
 	// avoiding expensive GPU readback on each getImageData() call.
@@ -101,9 +267,13 @@ export function measureLineDensity(
 	// Re-apply font after canvas resize — resize resets context state.
 	ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 	ctx.clearRect(0, 0, textWidth, lineHeight)
-	ctx.fillStyle = 'white'
+
+	// Draw background then text. In dark mode, flip fg/bg so we can count
+	// light pixels as ink — the density measurement stays consistent regardless
+	// of whether the page renders dark-on-light or light-on-dark.
+	ctx.fillStyle = darkMode ? 'black' : 'white'
 	ctx.fillRect(0, 0, textWidth, lineHeight)
-	ctx.fillStyle = 'black'
+	ctx.fillStyle = darkMode ? 'white' : 'black'
 	ctx.font = fontStyle
 	// Approximate baseline at 75% of line height
 	ctx.fillText(text, 0, lineHeight * 0.75)
@@ -118,9 +288,14 @@ export function measureLineDensity(
 		const r = data[i]
 		const g = data[i + 1]
 		const b = data[i + 2]
-		// Count as ink if darker than mid-grey. Threshold 140 correctly captures
-		// antialiased edges at high DPR; 200 was too permissive and over-counted.
-		if (r < 140 || g < 140 || b < 140) inkPixels++
+		if (darkMode) {
+			// Light-on-dark: count pixels lighter than mid-grey as ink
+			if (r > 115 || g > 115 || b > 115) inkPixels++
+		} else {
+			// Dark-on-light: count pixels darker than mid-grey as ink.
+			// Threshold 140 correctly captures antialiased edges at high DPR.
+			if (r < 140 || g < 140 || b < 140) inkPixels++
+		}
 	}
 
 	return totalPixels > 0 ? inkPixels / totalPixels : 0
@@ -187,6 +362,10 @@ export function applyGrayValue(
 	const tolerance = options.tolerance ?? DEFAULTS.tolerance
 	const calibrationFactor = options.calibrationFactor ?? DEFAULTS.calibrationFactor
 	const linePreservation = options.linePreservation ?? 'none'
+	const densityMode = options.densityMode ?? 'canvas'
+
+	// Kick off opentype.js load when glyph-path mode is requested
+	if (densityMode === 'glyph-path') tryLoadOpentype()
 
 	// --- Pass 1: Reset ---
 	element.innerHTML = originalHTML
@@ -204,6 +383,13 @@ export function applyGrayValue(
 	const containerWidth = element.offsetWidth
 	const fontSize = parseFloat(getComputedStyle(element).fontSize) || 16
 	const fontStyle = getCanvasFontStyle(element)
+
+	// Detect dark-mode context: when the background is darker than the text,
+	// the canvas pixel-counting must be inverted to count light pixels as ink.
+	const computedStyle = getComputedStyle(element)
+	const fgLuminance = relativeLuminance(computedStyle.color)
+	const bgLuminance = relativeLuminance(computedStyle.backgroundColor)
+	const darkMode = bgLuminance < fgLuminance
 
 	// --- Pass 2: Word wrap ---
 	// Recursive childNodes traversal (not createTreeWalker — happy-dom bug).
@@ -353,18 +539,24 @@ export function applyGrayValue(
 	}
 
 	// --- Pass 4: Measure density per line ---
-	// Each line is measured against its own rendered text width (not containerWidth).
-	// This gives the intrinsic character ink density independent of line length.
+	// Two modes: 'canvas' (default) and 'glyph-path' (opentype.js, exact area).
+	// glyph-path falls back to canvas if opentype.js is not loaded or fontUrl is absent.
+
+	const useGlyphPath = densityMode === 'glyph-path' && _opentype !== null && !!options.fontUrl
+
+	// For glyph-path mode, attempt to load the font — use canvas while loading.
+	// If the font is already in _fontCache the callback fires synchronously.
+	let loadedFont: OpentypeFont | null = null
+	if (useGlyphPath) loadFont(options.fontUrl!, (f) => { loadedFont = f })
+
 	const canvas: HTMLCanvasElement = _canvas ?? document.createElement('canvas')
 
-	const densities: number[] = lines.map((line) =>
-		measureLineDensity(
-			line.text,
-			fontStyle,
-			line.height || fontSize,
-			canvas,
-		),
-	)
+	const densities: number[] = lines.map((line) => {
+		if (useGlyphPath && loadedFont) {
+			return measureLineDensityGlyph(line.text, loadedFont, fontSize, line.height || fontSize)
+		}
+		return measureLineDensity(line.text, fontStyle, line.height || fontSize, canvas, darkMode)
+	})
 
 	// --- Pass 5: Calculate target density ---
 	let targetDensity: number

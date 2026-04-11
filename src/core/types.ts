@@ -3,6 +3,25 @@
 /** Options controlling the gray-value density-equalization algorithm */
 export interface GrayValueOptions {
 	/**
+	 * Density measurement method. Default: 'canvas'
+	 *
+	 * - **'canvas'** (default) — renders each line to an off-screen canvas and counts ink pixels.
+	 *   Fast and works with any font. Accuracy is affected by antialiasing and subpixel rendering.
+	 *
+	 * - **'glyph-path'** — loads the font binary via `opentype.js`, extracts each glyph's bezier
+	 *   path, and computes the true filled area using the shoelace formula. Font-exact: independent
+	 *   of rendering engine, antialiasing, or display DPR. Requires the font to be served from the
+	 *   same origin (CORS) and the `opentype.js` package: `npm install opentype.js`.
+	 *   Falls back to 'canvas' if `opentype.js` is not installed or the font cannot be loaded.
+	 */
+	densityMode?: 'canvas' | 'glyph-path'
+	/**
+	 * URL of the font file to use for glyph-path measurement.
+	 * Required when `densityMode: 'glyph-path'`. Ignored in canvas mode.
+	 * Must be same-origin or CORS-enabled. Supports OTF, TTF, WOFF, WOFF2.
+	 */
+	fontUrl?: string
+	/**
 	 * Line detection method. Default: 'bcr'
 	 *
 	 * - **'bcr'** (default) — uses `getBoundingClientRect()` on injected word spans.
