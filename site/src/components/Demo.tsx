@@ -1,6 +1,6 @@
 "use client"
 
-// Interactive gray value demo with cursor/gyro mode, drag-to-inspect circle, and live controls
+// Interactive gray value demo with cursor/gyro/ambient-light modes, drag-to-inspect circle, and live controls
 import { useState, useEffect, useDeferredValue, useRef } from "react"
 import { GrayValueText } from "@liiift-studio/steadygray"
 
@@ -8,12 +8,26 @@ const SAMPLE = `The colour of a page — the compositor's term for the aggregate
 
 const INSPECTOR_R = 96
 
+/** Map a lux value to a human-readable ambient light label */
+function luxLabel(lux: number): string {
+	if (lux < 100) return "Dark room"
+	if (lux < 1000) return "Indoor"
+	if (lux < 10000) return "Overcast"
+	if (lux < 30000) return "Outdoor"
+	return "Direct sun"
+}
+
+/** Derive calibrationFactor from lux: 0.5 (dark) → 5.0 (bright sun) */
+function luxToCalibration(lux: number): number {
+	return parseFloat((0.5 + (lux / 50000) * 4.5).toFixed(1))
+}
+
 /** Labelled range slider with value displayed below the track */
-function Slider({ label, value, min, max, step, onChange, fmt }: { label: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void; fmt?: (v: number) => string }) {
+function Slider({ label, value, min, max, step, onChange, fmt, dimmed }: { label: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void; fmt?: (v: number) => string; dimmed?: boolean }) {
 	return (
-		<div className="flex flex-col gap-1">
+		<div className="flex flex-col gap-1" style={{ opacity: dimmed ? 0.4 : 1, transition: 'opacity 0.2s ease' }}>
 			<span className="text-xs uppercase tracking-widest opacity-50">{label}</span>
-			<input type="range" min={min} max={max} step={step} value={value} aria-label={label} onChange={e => onChange(Number(e.target.value))} onTouchStart={e => e.stopPropagation()} style={{ touchAction: 'none' }} />
+			<input type="range" min={min} max={max} step={step} value={value} aria-label={label} onChange={e => onChange(Number(e.target.value))} onTouchStart={e => e.stopPropagation()} style={{ touchAction: 'none' }} disabled={dimmed} />
 			<span className="tabular-nums text-xs opacity-50 text-right">{fmt ? fmt(value) : value}</span>
 		</div>
 	)
@@ -66,6 +80,23 @@ function GyroIcon() {
 	)
 }
 
+/** Sun icon SVG — for ambient light mode */
+function SunIcon() {
+	return (
+		<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden>
+			<circle cx="7" cy="7" r="2.5" />
+			<line x1="7" y1="0.5" x2="7" y2="2.5" />
+			<line x1="7" y1="11.5" x2="7" y2="13.5" />
+			<line x1="0.5" y1="7" x2="2.5" y2="7" />
+			<line x1="11.5" y1="7" x2="13.5" y2="7" />
+			<line x1="2.4" y1="2.4" x2="3.8" y2="3.8" />
+			<line x1="10.2" y1="10.2" x2="11.6" y2="11.6" />
+			<line x1="11.6" y1="2.4" x2="10.2" y2="3.8" />
+			<line x1="3.8" y1="10.2" x2="2.4" y2="11.6" />
+		</svg>
+	)
+}
+
 export default function Demo() {
 	const [maxAdjustment, setMaxAdjustment] = useState(0.05)
 	const [calibrationFactor, setCalibrationFactor] = useState(2.0)
@@ -75,6 +106,10 @@ export default function Demo() {
 	// Interaction modes — mutually exclusive
 	const [cursorMode, setCursorMode] = useState(false)
 	const [gyroMode, setGyroMode] = useState(false)
+	const [ambientMode, setAmbientMode] = useState(false)
+
+	// Lux value for ambient light simulation (0–50000, default 500)
+	const [lux, setLux] = useState(500)
 
 	// Gyro-driven maxAdjustment — kept separate from slider state so slider value props
 	// never change during gyro mode (preventing mobile scroll-to-input on orientation update)
@@ -112,11 +147,14 @@ export default function Demo() {
 	}
 	const handleCirclePointerUp = () => { dragging.current = false }
 
+	// Effective calibrationFactor: ambient-driven when ambientMode is active, slider-driven otherwise
+	const effectiveCalibration = ambientMode ? luxToCalibration(lux) : calibrationFactor
+
 	// Effective maxAdjustment: gyro-driven when gyroMode is active, slider-driven otherwise
 	const effectiveMax = gyroMode ? gyroMaxAdjustment : maxAdjustment
 
 	const dMax = useDeferredValue(effectiveMax)
-	const dCal = useDeferredValue(calibrationFactor)
+	const dCal = useDeferredValue(effectiveCalibration)
 	const dMethod = useDeferredValue(method)
 
 	// Cursor mode — Y controls maxAdjustment (inverted: top = 0.15, bottom = 0.01)
@@ -161,19 +199,21 @@ export default function Demo() {
 		}
 	}, [gyroMode])
 
-	// Toggle cursor mode — turns off gyro if active
+	// Toggle cursor mode — turns off gyro and ambient if active
 	const toggleCursor = () => {
 		setGyroMode(false)
+		setAmbientMode(false)
 		setCursorMode(v => !v)
 	}
 
-	// Toggle gyro mode — requests iOS permission if needed, turns off cursor if active
+	// Toggle gyro mode — requests iOS permission if needed, turns off cursor and ambient if active
 	const toggleGyro = async () => {
 		if (gyroMode) {
 			setGyroMode(false)
 			return
 		}
 		setCursorMode(false)
+		setAmbientMode(false)
 		const DOE = DeviceOrientationEvent as typeof DeviceOrientationEvent & {
 			requestPermission?: () => Promise<PermissionState>
 		}
@@ -185,6 +225,13 @@ export default function Demo() {
 		}
 	}
 
+	// Toggle ambient mode — turns off cursor and gyro if active
+	const toggleAmbient = () => {
+		setCursorMode(false)
+		setGyroMode(false)
+		setAmbientMode(v => !v)
+	}
+
 	const sampleStyle: React.CSSProperties = {
 		fontFamily: "var(--font-merriweather), serif",
 		fontSize: "1.125rem",
@@ -192,15 +239,15 @@ export default function Demo() {
 		fontVariationSettings: '"wght" 300, "opsz" 18, "wdth" 100',
 	}
 
-	const activeMode = cursorMode || gyroMode
+	const activeMode = cursorMode || gyroMode || ambientMode
 
 	return (
 		<div className="w-full">
 			<div className="grid grid-cols-2 gap-6 mb-6">
 				<Slider label="Max adjustment (em)" value={maxAdjustment} min={0.01} max={0.15} step={0.005} onChange={setMaxAdjustment} fmt={v => v.toFixed(3)} />
-				<Slider label="Sensitivity" value={calibrationFactor} min={0.5} max={5} step={0.1} onChange={setCalibrationFactor} fmt={v => v.toFixed(1)} />
+				<Slider label="Sensitivity" value={calibrationFactor} min={0.5} max={5} step={0.1} onChange={setCalibrationFactor} fmt={v => v.toFixed(1)} dimmed={ambientMode} />
 			</div>
-			<div className="flex flex-wrap items-center gap-3 mb-8">
+			<div className="flex flex-wrap items-center gap-3 mb-4">
 				<span className="text-xs uppercase tracking-widest opacity-50">Method</span>
 				{(['letter-spacing', 'word-spacing'] as const).map(v => (
 					<button key={v} onClick={() => setMethod(v)} className="text-xs px-3 py-1 rounded-full border transition-opacity" style={{ borderColor: 'currentColor', opacity: method === v ? 1 : 0.5, background: method === v ? 'var(--btn-bg)' : 'transparent' }}>{v}</button>
@@ -239,10 +286,41 @@ export default function Demo() {
 						<span>{gyroMode ? 'Tilt active' : 'Gyro'}</span>
 					</button>
 				)}
+
+				{/* Ambient light mode — always shown */}
+				<button
+					onClick={toggleAmbient}
+					title="Simulate ambient light conditions affecting perceived contrast"
+					className="flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border transition-all"
+					style={{
+						borderColor: 'currentColor',
+						opacity: ambientMode ? 1 : 0.5,
+						background: ambientMode ? 'var(--btn-bg)' : 'transparent',
+						marginLeft: showCursor || showGyro ? undefined : 'auto',
+					}}
+				>
+					<SunIcon />
+					<span>Ambient</span>
+				</button>
 			</div>
 
+			{/* Lux slider — visible only in ambient mode */}
+			{ambientMode && (
+				<div className="mb-6">
+					<Slider
+						label="Ambient light (lux)"
+						value={lux}
+						min={0}
+						max={50000}
+						step={100}
+						onChange={setLux}
+						fmt={v => `${v.toLocaleString()} lx — ${luxLabel(v)}  →  sensitivity ${luxToCalibration(v).toFixed(1)}`}
+					/>
+				</div>
+			)}
+
 			{/* Inspector wrapper — draggable blur circle; compare overlay and button sit inside */}
-			<div ref={containerRef} className="relative pb-8">
+			<div ref={containerRef} className="relative pb-8" style={{ marginTop: ambientMode ? 0 : undefined }}>
 				<GrayValueText maxAdjustment={dMax} calibrationFactor={dCal} method={dMethod} style={sampleStyle}>
 					{SAMPLE}
 				</GrayValueText>
@@ -293,11 +371,17 @@ export default function Demo() {
 
 			{/* Caption */}
 			<div className="flex items-center gap-3 mt-8">
-				{activeMode ? (
+				{ambientMode ? (
 					<p className="text-xs opacity-50 italic" style={{ lineHeight: "1.8" }}>
-						{cursorMode
-							? 'Move cursor up/down to adjust max adjustment. Press Esc to exit.'
-							: 'Tilt front/back to adjust max adjustment.'}
+						Ambient light simulation for smart glasses: at {lux.toLocaleString()} lx ({luxLabel(lux)}), high ambient light bleeds background into text, requiring a sensitivity of {luxToCalibration(lux).toFixed(1)} to maintain even optical density.
+					</p>
+				) : cursorMode ? (
+					<p className="text-xs opacity-50 italic" style={{ lineHeight: "1.8" }}>
+						Move cursor up/down to adjust max adjustment. Press Esc to exit.
+					</p>
+				) : gyroMode ? (
+					<p className="text-xs opacity-50 italic" style={{ lineHeight: "1.8" }}>
+						Tilt front/back to adjust max adjustment.
 					</p>
 				) : (
 					<p className="text-xs opacity-50 italic" style={{ lineHeight: "1.8" }}>Each line is measured by pixel density and adjusted by ±{effectiveMax.toFixed(3)}em via {method}.</p>
