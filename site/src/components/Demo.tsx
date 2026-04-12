@@ -1,12 +1,14 @@
 "use client"
 
-import { useState, useDeferredValue, useRef } from "react"
+// Interactive gray value demo with cursor/gyro mode, drag-to-inspect circle, and live controls
+import { useState, useEffect, useDeferredValue, useRef } from "react"
 import { GrayValueText } from "@liiift-studio/steadygray"
 
 const SAMPLE = `The colour of a page — the compositor's term for the aggregate grey of the text block — is determined by the ratio of ink to space across every line. A line with many narrow letters sits lighter than one with wide letters and generous spacing. Print compositors corrected this by hand, adjusting word spaces to equalise the grey. No web tool has automated this measurement. Gray Value uses Canvas to sample the actual ink pixels in each rendered line, then adjusts letter-spacing to bring every line to the same optical density. The adjustment is invisible when correct — all you notice is that the paragraph looks even.`
 
 const INSPECTOR_R = 96
 
+/** Labelled range slider with value displayed below the track */
 function Slider({ label, value, min, max, step, onChange, fmt }: { label: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void; fmt?: (v: number) => string }) {
 	return (
 		<div className="flex flex-col gap-1">
@@ -43,14 +45,55 @@ function BeforeAfterToggle({ active, onClick }: { active: boolean; onClick: () =
 	)
 }
 
+/** Cursor icon SVG */
+function CursorIcon() {
+	return (
+		<svg width="11" height="14" viewBox="0 0 11 14" fill="currentColor" aria-hidden>
+			<path d="M0 0L0 11L3 8L5 13L6.8 12.3L4.8 7.3L8.5 7.3Z" />
+		</svg>
+	)
+}
+
+/** Gyroscope icon SVG — circle with rotation arrow */
+function GyroIcon() {
+	return (
+		<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" aria-hidden>
+			<circle cx="7" cy="7" r="5.5" />
+			<circle cx="7" cy="7" r="1.5" fill="currentColor" stroke="none" />
+			<path d="M7 1.5 A5.5 5.5 0 0 1 12.5 7" strokeWidth="1.4" />
+			<path d="M11.5 5.5 L12.5 7 L13.8 6" strokeWidth="1.2" />
+		</svg>
+	)
+}
+
 export default function Demo() {
 	const [maxAdjustment, setMaxAdjustment] = useState(0.05)
 	const [calibrationFactor, setCalibrationFactor] = useState(2.0)
 	const [method, setMethod] = useState<'letter-spacing' | 'word-spacing'>('letter-spacing')
 	const [beforeAfter, setComparing] = useState(false)
 
+	// Interaction modes — mutually exclusive
+	const [cursorMode, setCursorMode] = useState(false)
+	const [gyroMode, setGyroMode] = useState(false)
+
+	// Gyro-driven maxAdjustment — kept separate from slider state so slider value props
+	// never change during gyro mode (preventing mobile scroll-to-input on orientation update)
+	const [gyroMaxAdjustment, setGyroMaxAdjustment] = useState(0.05)
+
+	// Detected capabilities — resolved client-side after mount
+	const [showCursor, setShowCursor] = useState(false)
+	const [showGyro, setShowGyro] = useState(false)
+
+	useEffect(() => {
+		const isHover = window.matchMedia('(hover: hover)').matches
+		const isTouch = window.matchMedia('(hover: none)').matches
+		setShowCursor(isHover)
+		setShowGyro(isTouch && 'DeviceOrientationEvent' in window)
+	}, [])
+
 	// Blur circle position as fraction of container (0–1)
 	const [circlePos, setCirclePos] = useState({ x: 0.5, y: 0.5 })
+	const [hasDragged, setHasDragged] = useState(false)
 	const dragging = useRef(false)
 	const containerRef = useRef<HTMLDivElement>(null)
 
@@ -60,6 +103,7 @@ export default function Demo() {
 	}
 	const handleCirclePointerMove = (e: React.PointerEvent) => {
 		if (!dragging.current || !containerRef.current) return
+		if (!hasDragged) setHasDragged(true)
 		const rect = containerRef.current.getBoundingClientRect()
 		setCirclePos({
 			x: Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)),
@@ -68,9 +112,78 @@ export default function Demo() {
 	}
 	const handleCirclePointerUp = () => { dragging.current = false }
 
-	const dMax = useDeferredValue(maxAdjustment)
+	// Effective maxAdjustment: gyro-driven when gyroMode is active, slider-driven otherwise
+	const effectiveMax = gyroMode ? gyroMaxAdjustment : maxAdjustment
+
+	const dMax = useDeferredValue(effectiveMax)
 	const dCal = useDeferredValue(calibrationFactor)
 	const dMethod = useDeferredValue(method)
+
+	// Cursor mode — Y controls maxAdjustment (inverted: top = 0.15, bottom = 0.01)
+	useEffect(() => {
+		if (!cursorMode) return
+		const handleMove = (e: MouseEvent) => {
+			setMaxAdjustment(parseFloat((0.01 + (1 - e.clientY / window.innerHeight) * 0.14).toFixed(3)))
+		}
+		const handleKey = (e: KeyboardEvent) => {
+			if (e.key === 'Escape') setCursorMode(false)
+		}
+		window.addEventListener('mousemove', handleMove)
+		window.addEventListener('keydown', handleKey)
+		return () => {
+			window.removeEventListener('mousemove', handleMove)
+			window.removeEventListener('keydown', handleKey)
+		}
+	}, [cursorMode])
+
+	// Gyro mode — beta (front/back tilt) controls maxAdjustment.
+	// beta clamped [15, 90]: tilt forward (smaller beta) = lower adjustment, upright = higher.
+	// Uses gyroMaxAdjustment so slider value props stay frozen during orientation events.
+	// rAF throttle limits re-renders to one per frame.
+	useEffect(() => {
+		if (!gyroMode) return
+		let rafId: number | null = null
+		const handleOrientation = (e: DeviceOrientationEvent) => {
+			if (rafId !== null) return
+			rafId = requestAnimationFrame(() => {
+				rafId = null
+				if (e.beta !== null) {
+					// beta [15, 90] → maxAdjustment [0.01, 0.15]
+					const clamped = Math.max(15, Math.min(90, e.beta))
+					setGyroMaxAdjustment(parseFloat((0.01 + ((clamped - 15) / 75) * 0.14).toFixed(3)))
+				}
+			})
+		}
+		window.addEventListener('deviceorientation', handleOrientation)
+		return () => {
+			window.removeEventListener('deviceorientation', handleOrientation)
+			if (rafId !== null) cancelAnimationFrame(rafId)
+		}
+	}, [gyroMode])
+
+	// Toggle cursor mode — turns off gyro if active
+	const toggleCursor = () => {
+		setGyroMode(false)
+		setCursorMode(v => !v)
+	}
+
+	// Toggle gyro mode — requests iOS permission if needed, turns off cursor if active
+	const toggleGyro = async () => {
+		if (gyroMode) {
+			setGyroMode(false)
+			return
+		}
+		setCursorMode(false)
+		const DOE = DeviceOrientationEvent as typeof DeviceOrientationEvent & {
+			requestPermission?: () => Promise<PermissionState>
+		}
+		if (typeof DOE.requestPermission === 'function') {
+			const permission = await DOE.requestPermission()
+			if (permission === 'granted') setGyroMode(true)
+		} else {
+			setGyroMode(true)
+		}
+	}
 
 	const sampleStyle: React.CSSProperties = {
 		fontFamily: "var(--font-merriweather), serif",
@@ -79,24 +192,57 @@ export default function Demo() {
 		fontVariationSettings: '"wght" 300, "opsz" 18, "wdth" 100',
 	}
 
+	const activeMode = cursorMode || gyroMode
+
 	return (
 		<div className="w-full">
 			<div className="grid grid-cols-2 gap-6 mb-6">
 				<Slider label="Max adjustment (em)" value={maxAdjustment} min={0.01} max={0.15} step={0.005} onChange={setMaxAdjustment} fmt={v => v.toFixed(3)} />
-				<Slider label="Calibration factor" value={calibrationFactor} min={0.5} max={5} step={0.1} onChange={setCalibrationFactor} fmt={v => v.toFixed(1)} />
+				<Slider label="Sensitivity" value={calibrationFactor} min={0.5} max={5} step={0.1} onChange={setCalibrationFactor} fmt={v => v.toFixed(1)} />
 			</div>
 			<div className="flex flex-wrap items-center gap-3 mb-8">
 				<span className="text-xs uppercase tracking-widest opacity-50">Method</span>
 				{(['letter-spacing', 'word-spacing'] as const).map(v => (
 					<button key={v} onClick={() => setMethod(v)} className="text-xs px-3 py-1 rounded-full border transition-opacity" style={{ borderColor: 'currentColor', opacity: method === v ? 1 : 0.5, background: method === v ? 'var(--btn-bg)' : 'transparent' }}>{v}</button>
 				))}
+
+				{/* Cursor mode — desktop/hover-capable devices only */}
+				{showCursor && (
+					<button
+						onClick={toggleCursor}
+						title="Move cursor vertically to control max adjustment"
+						className="flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border transition-all ml-auto"
+						style={{
+							borderColor: 'currentColor',
+							opacity: cursorMode ? 1 : 0.5,
+							background: cursorMode ? 'var(--btn-bg)' : 'transparent',
+						}}
+					>
+						<CursorIcon />
+						<span>{cursorMode ? 'Esc to exit' : 'Cursor'}</span>
+					</button>
+				)}
+
+				{/* Gyro mode — touch devices with DeviceOrientationEvent */}
+				{showGyro && (
+					<button
+						onClick={toggleGyro}
+						title="Tilt your device front/back to control max adjustment"
+						className="flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border transition-all ml-auto"
+						style={{
+							borderColor: 'currentColor',
+							opacity: gyroMode ? 1 : 0.5,
+							background: gyroMode ? 'var(--btn-bg)' : 'transparent',
+						}}
+					>
+						<GyroIcon />
+						<span>{gyroMode ? 'Tilt active' : 'Gyro'}</span>
+					</button>
+				)}
 			</div>
 
 			{/* Inspector wrapper — draggable blur circle; compare overlay and button sit inside */}
-			<div
-				ref={containerRef}
-				className="relative pb-8"
-			>
+			<div ref={containerRef} className="relative pb-8">
 				<GrayValueText maxAdjustment={dMax} calibrationFactor={dCal} method={dMethod} style={sampleStyle}>
 					{SAMPLE}
 				</GrayValueText>
@@ -124,10 +270,39 @@ export default function Demo() {
 						touchAction: 'none',
 					}}
 				/>
+				{!hasDragged && (
+					<p
+						aria-hidden
+						style={{
+							position: 'absolute',
+							left: `${circlePos.x * 100}%`,
+							top: `${circlePos.y * 100}%`,
+							transform: 'translate(-50%, 20px)',
+							fontSize: 11,
+							opacity: 0.4,
+							pointerEvents: 'none',
+							whiteSpace: 'nowrap',
+							margin: 0,
+						}}
+					>
+						drag to inspect
+					</p>
+				)}
 				<BeforeAfterToggle active={beforeAfter} onClick={() => setComparing(v => !v)} />
 			</div>
 
-			<p className="text-xs opacity-50 italic mt-8" style={{ lineHeight: "1.8" }}>Each line is measured by pixel density and adjusted by ±{maxAdjustment.toFixed(3)}em via {method}.</p>
+			{/* Caption */}
+			<div className="flex items-center gap-3 mt-8">
+				{activeMode ? (
+					<p className="text-xs opacity-50 italic" style={{ lineHeight: "1.8" }}>
+						{cursorMode
+							? 'Move cursor up/down to adjust max adjustment. Press Esc to exit.'
+							: 'Tilt front/back to adjust max adjustment.'}
+					</p>
+				) : (
+					<p className="text-xs opacity-50 italic" style={{ lineHeight: "1.8" }}>Each line is measured by pixel density and adjusted by ±{effectiveMax.toFixed(3)}em via {method}.</p>
+				)}
+			</div>
 		</div>
 	)
 }
