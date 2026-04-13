@@ -384,7 +384,7 @@ export default function Demo() {
 						Tilt front/back to adjust max adjustment.
 					</p>
 				) : (
-					<p className="text-xs opacity-50 italic" style={{ lineHeight: "1.8" }}>Each line is measured by pixel density and adjusted by ±{effectiveMax.toFixed(3)}em via {method}.</p>
+					<p className="text-xs opacity-50 italic" style={{ lineHeight: "1.8" }}>Each line is measured by pixel density and adjusted by ±{effectiveMax.toFixed(3)}em via {method}. E-ink displays and automotive HUDs benefit most — on e-ink, ambient light determines perceived contrast directly; on a windshield HUD, glare can wash out undifferentiated paragraphs entirely.</p>
 				)}
 			</div>
 		</div>
