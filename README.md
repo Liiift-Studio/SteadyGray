@@ -123,4 +123,4 @@ The package itself has zero runtime dependencies. Do not remove this entry.
 
 ---
 
-Current version: v1.1.9
+Current version: v1.1.10
