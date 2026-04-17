@@ -417,6 +417,7 @@ export function applyGrayValue(
 	const fgLuminance = relativeLuminance(computedStyle.color)
 	const bgLuminance = relativeLuminance(computedStyle.backgroundColor)
 	const darkMode = bgLuminance < fgLuminance
+	const baseWeight = parseFloat(computedStyle.fontWeight) || 400
 
 	// --- Pass 2: Word wrap ---
 	// Recursive childNodes traversal (not createTreeWalker — happy-dom bug).
@@ -618,22 +619,24 @@ export function applyGrayValue(
 		const maxC = Math.max(...complexityScores)
 		const rangeC = maxC - minC || 1
 
-		// Normalize to [0, 1]. Complex lines push the per-line target UP (more spacing);
-		// simple lines push it DOWN (less spacing). The range is ±maxAdjustment at strength=1.
+		// Normalize to [0, 1]. Complex lines get a LOWER density target so the
+		// algorithm opens them up (more spacing); simple lines get a higher target
+		// so they tighten slightly. Range is ±maxAdjustment×strength at strength=1.
 		perLineTargets = complexityScores.map((c) => {
 			const nc = (c - minC) / rangeC // 0 = simplest, 1 = most complex
-			return targetDensity + (nc - 0.5) * strength * maxAdjustment * 2
+			return targetDensity - (nc - 0.5) * strength * maxAdjustment * 2
 		})
 	} else {
 		perLineTargets = densities.map(() => targetDensity)
 	}
 
-	// Per-line spacing adjustment (linear approximation).
-	// delta = (perLineTarget - density) * calibrationFactor
-	// Positive delta → increase spacing; negative → decrease spacing.
-	// Clamped to ±maxAdjustment em.
+	// Per-line adjustment (linear approximation).
+	// delta = (density - perLineTarget) * calibrationFactor
+	// Dense lines (density > target) → positive delta → open up (more space / lighter weight / narrower).
+	// Sparse lines (density < target) → negative delta → tighten (less space / heavier weight / wider).
+	// Clamped to ±maxAdjustment (em for spacing, weight units for font-weight, wdth units for font-width).
 	const adjustments: number[] = densities.map((density, i) => {
-		const delta = (perLineTargets[i] - density) * calibrationFactor
+		const delta = (density - perLineTargets[i]) * calibrationFactor
 		if (Math.abs(delta) < tolerance) return 0
 		return Math.max(-maxAdjustment, Math.min(maxAdjustment, delta))
 	})
@@ -648,8 +651,20 @@ export function applyGrayValue(
 	let html = ''
 	lines.forEach((line, i) => {
 		const adj = adjustments[i]
-		const spacingProp = method === 'word-spacing' ? 'word-spacing' : 'letter-spacing'
-		const lineStyle = `${LINE_STYLE}${spacingProp}:${adj}em;`
+		let lineStyle: string
+		if (method === 'font-weight') {
+			// Dense lines get positive adj → subtract to lighten; sparse lines get negative adj → add to darken.
+			const newWeight = Math.max(1, Math.min(999, Math.round(baseWeight - adj)))
+			lineStyle = `${LINE_STYLE}font-weight:${newWeight};`
+		} else if (method === 'font-width') {
+			// Dense lines get positive adj → subtract to narrow (less ink); sparse → add to widen.
+			// Note: font-variation-settings on child spans replaces the inherited value entirely.
+			const newWidth = Math.max(50, Math.min(200, +(100 - adj).toFixed(1)))
+			lineStyle = `${LINE_STYLE}font-variation-settings:"wdth" ${newWidth};`
+		} else {
+			const spacingProp = method === 'word-spacing' ? 'word-spacing' : 'letter-spacing'
+			lineStyle = `${LINE_STYLE}${spacingProp}:${adj}em;`
+		}
 
 		// Reconstruct line text from spans; trim leading whitespace on each line start
 		const lineText = line.spans

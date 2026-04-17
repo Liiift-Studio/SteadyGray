@@ -97,10 +97,36 @@ function SunIcon() {
 	)
 }
 
+type Method = 'letter-spacing' | 'word-spacing' | 'font-weight' | 'font-width'
+
+/** Default max adjustment and calibration factor per method. */
+const METHOD_DEFAULTS: Record<Method, { max: number; cal: number }> = {
+	'letter-spacing': { max: 0.05,  cal: 2    },
+	'word-spacing':   { max: 0.05,  cal: 2    },
+	'font-weight':    { max: 100,   cal: 1000 },
+	'font-width':     { max: 20,    cal: 500  },
+}
+
+/** Slider config (min/max/step/decimals) for the maxAdjustment slider per method. */
+const MAX_ADJ_CFG: Record<Method, { min: number; max: number; step: number; decimals: number; unit: string }> = {
+	'letter-spacing': { min: 0.005, max: 0.15, step: 0.005, decimals: 3, unit: 'em'   },
+	'word-spacing':   { min: 0.005, max: 0.15, step: 0.005, decimals: 3, unit: 'em'   },
+	'font-weight':    { min: 10,    max: 300,  step: 5,     decimals: 0, unit: 'wt'   },
+	'font-width':     { min: 1,     max: 50,   step: 0.5,   decimals: 1, unit: 'wdth' },
+}
+
+/** Slider config for the calibrationFactor slider per method. */
+const CAL_CFG: Record<Method, { min: number; max: number; step: number; decimals: number }> = {
+	'letter-spacing': { min: 0.5,  max: 5,    step: 0.1,  decimals: 1 },
+	'word-spacing':   { min: 0.5,  max: 5,    step: 0.1,  decimals: 1 },
+	'font-weight':    { min: 100,  max: 3000, step: 100,  decimals: 0 },
+	'font-width':     { min: 50,   max: 2000, step: 50,   decimals: 0 },
+}
+
 export default function Demo() {
 	const [maxAdjustment, setMaxAdjustment] = useState(0.05)
 	const [calibrationFactor, setCalibrationFactor] = useState(2.0)
-	const [method, setMethod] = useState<'letter-spacing' | 'word-spacing'>('letter-spacing')
+	const [method, setMethod] = useState<Method>('letter-spacing')
 	const [beforeAfter, setComparing] = useState(false)
 
 	// Interaction modes — mutually exclusive
@@ -199,6 +225,13 @@ export default function Demo() {
 		}
 	}, [gyroMode])
 
+	// Change method and reset max/calibration to per-method defaults
+	const changeMethod = (m: Method) => {
+		setMethod(m)
+		setMaxAdjustment(METHOD_DEFAULTS[m].max)
+		setCalibrationFactor(METHOD_DEFAULTS[m].cal)
+	}
+
 	// Toggle cursor mode — turns off gyro and ambient if active
 	const toggleCursor = () => {
 		setGyroMode(false)
@@ -232,25 +265,51 @@ export default function Demo() {
 		setAmbientMode(v => !v)
 	}
 
-	const sampleStyle: React.CSSProperties = {
-		fontFamily: "var(--font-merriweather), serif",
-		fontSize: "1.125rem",
-		lineHeight: "1.8",
-		fontVariationSettings: '"wght" 300, "opsz" 18, "wdth" 100',
-	}
+	// In font-weight mode, use font-weight (not fontVariationSettings) so per-line
+	// weight adjustments on child spans are not overridden by an inherited "wght" axis.
+	const sampleStyle: React.CSSProperties = method === 'font-weight'
+		? {
+			fontFamily: "var(--font-merriweather), serif",
+			fontSize: "1.125rem",
+			lineHeight: "1.8",
+			fontWeight: 300,
+		}
+		: {
+			fontFamily: "var(--font-merriweather), serif",
+			fontSize: "1.125rem",
+			lineHeight: "1.8",
+			fontVariationSettings: '"wght" 300, "opsz" 18, "wdth" 100',
+		}
 
 	const activeMode = cursorMode || gyroMode || ambientMode
 
 	return (
 		<div className="w-full">
 			<div className="grid grid-cols-2 gap-6 mb-6">
-				<Slider label="Max adjustment (em)" value={maxAdjustment} min={0.01} max={0.15} step={0.005} onChange={setMaxAdjustment} fmt={v => v.toFixed(3)} />
-				<Slider label="Sensitivity" value={calibrationFactor} min={0.5} max={5} step={0.1} onChange={setCalibrationFactor} fmt={v => v.toFixed(1)} dimmed={ambientMode} />
+				<Slider
+					label={`Max adjustment (${MAX_ADJ_CFG[method].unit})`}
+					value={maxAdjustment}
+					min={MAX_ADJ_CFG[method].min}
+					max={MAX_ADJ_CFG[method].max}
+					step={MAX_ADJ_CFG[method].step}
+					onChange={setMaxAdjustment}
+					fmt={v => `${v.toFixed(MAX_ADJ_CFG[method].decimals)} ${MAX_ADJ_CFG[method].unit}`}
+				/>
+				<Slider
+					label="Sensitivity"
+					value={calibrationFactor}
+					min={CAL_CFG[method].min}
+					max={CAL_CFG[method].max}
+					step={CAL_CFG[method].step}
+					onChange={setCalibrationFactor}
+					fmt={v => v.toFixed(CAL_CFG[method].decimals)}
+					dimmed={ambientMode}
+				/>
 			</div>
 			<div className="flex flex-wrap items-center gap-3 mb-4">
 				<span className="text-xs uppercase tracking-widest opacity-50">Method</span>
-				{(['letter-spacing', 'word-spacing'] as const).map(v => (
-					<button key={v} onClick={() => setMethod(v)} className="text-xs px-3 py-1 rounded-full border transition-opacity" style={{ borderColor: 'currentColor', opacity: method === v ? 1 : 0.5, background: method === v ? 'var(--btn-bg)' : 'transparent' }}>{v}</button>
+				{(['letter-spacing', 'word-spacing', 'font-weight', 'font-width'] as const).map(v => (
+					<button key={v} onClick={() => changeMethod(v)} className="text-xs px-3 py-1 rounded-full border transition-opacity" style={{ borderColor: 'currentColor', opacity: method === v ? 1 : 0.5, background: method === v ? 'var(--btn-bg)' : 'transparent' }}>{v}</button>
 				))}
 
 				{/* Cursor mode — desktop/hover-capable devices only */}
@@ -384,7 +443,12 @@ export default function Demo() {
 						Tilt front/back to adjust max adjustment.
 					</p>
 				) : (
-					<p className="text-xs opacity-50 italic" style={{ lineHeight: "1.8" }}>Each line is measured by pixel density and adjusted by ±{effectiveMax.toFixed(3)}em via {method}. E-ink displays and automotive HUDs benefit most — on e-ink, ambient light determines perceived contrast directly; on a windshield HUD, glare can wash out undifferentiated paragraphs entirely.</p>
+					<p className="text-xs opacity-50 italic" style={{ lineHeight: "1.8" }}>
+						{method === 'font-weight' || method === 'font-width'
+							? `Each line is measured by pixel density and adjusted by ±${effectiveMax.toFixed(MAX_ADJ_CFG[method].decimals)} ${MAX_ADJ_CFG[method].unit} via ${method}. Requires a variable font with a ${method === 'font-weight' ? 'wght' : 'wdth'} axis for continuous adjustment.`
+							: `Each line is measured by pixel density and adjusted by ±${effectiveMax.toFixed(3)} em via ${method}. E-ink displays and automotive HUDs benefit most — on e-ink, ambient light determines perceived contrast directly; on a windshield HUD, glare can wash out undifferentiated paragraphs entirely.`
+						}
+					</p>
 				)}
 			</div>
 		</div>

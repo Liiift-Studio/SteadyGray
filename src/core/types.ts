@@ -40,15 +40,30 @@ export interface GrayValueOptions {
 	targetDensity?: number | 'auto'
 
 	/**
-	 * Which CSS spacing property to adjust per line.
-	 * Default: 'letter-spacing'.
+	 * Which CSS property to adjust per line. Default: 'letter-spacing'.
+	 *
+	 * - **'letter-spacing'** (default) — adjusts inter-character spacing in em units.
+	 * - **'word-spacing'** — adjusts inter-word spacing in em units.
+	 * - **'font-weight'** — adjusts font weight per line. `maxAdjustment` is in weight
+	 *   units (e.g. 100 = ±100 weight from the base). Requires a font with a wght axis
+	 *   or multiple weight variants. Set `calibrationFactor` to ~500–2000 and
+	 *   `maxAdjustment` to ~50–200 for visible results.
+	 * - **'font-width'** — adjusts the `wdth` variable font axis per line via
+	 *   `font-variation-settings`. `maxAdjustment` is in wdth units (e.g. 20 = ±20).
+	 *   Requires a font with a wdth axis. Set `calibrationFactor` to ~300–1000 and
+	 *   `maxAdjustment` to ~10–40 for visible results. Note: applying per-line
+	 *   `font-variation-settings` replaces any inherited `font-variation-settings` on
+	 *   that line span, so other axes (wght, opsz) will not be inherited.
 	 */
-	method?: 'letter-spacing' | 'word-spacing'
+	method?: 'letter-spacing' | 'word-spacing' | 'font-weight' | 'font-width'
 
 	/**
-	 * Maximum spacing adjustment in em units.
+	 * Maximum adjustment magnitude — unit depends on `method`:
+	 * - letter-spacing / word-spacing: em units. Default: 0.05
+	 * - font-weight: weight units (e.g. 100 = ±100). Default when weight mode: 100
+	 * - font-width: wdth axis units (e.g. 20 = ±20). Default when width mode: 20
+	 *
 	 * Positive and negative adjustments are both clamped to this magnitude.
-	 * Default: 0.05
 	 */
 	maxAdjustment?: number
 
