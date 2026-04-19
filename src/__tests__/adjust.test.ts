@@ -187,35 +187,35 @@ describe('gray-value', () => {
 		expect(lineSpans.length).toBeGreaterThan(0)
 	})
 
-	// 2. Lines with below-target density get positive letter-spacing
-	it('applies positive letter-spacing to below-target-density lines', () => {
+	// 2. Lines with below-target density get negative letter-spacing (tightened to increase density)
+	it('applies negative letter-spacing to below-target-density lines', () => {
 		const words = Array.from({ length: 14 }, (_, i) => `word${i + 1}`).join(' ')
 		const el = makeElement(words)
 		const original = getCleanHTML(el)
 		// targetDensity=0.05: 1st line density=0.06 (dense), 2nd line density=0.02 (sparse)
-		// Sparse line (below target) → positive letter-spacing
+		// Sparse line (below target) → negative letter-spacing tightens tracking
 		applyGrayValue(el, original, { targetDensity: 0.05, calibrationFactor: 2.0, maxAdjustment: 0.05 }, makeMockCanvas())
 		const lines = Array.from(el.querySelectorAll<HTMLElement>(`.${GRAY_VALUE_CLASSES.line}`))
 		expect(lines.length).toBeGreaterThanOrEqual(2)
-		// Second line density = 0.02 < 0.05 target → positive spacing
+		// Second line density = 0.02 < 0.05 target → negative spacing to tighten it
 		const secondLine = lines[1]
 		const spacing = parseFloat(secondLine.style.letterSpacing)
-		expect(spacing).toBeGreaterThan(0)
+		expect(spacing).toBeLessThan(0)
 	})
 
-	// 3. Lines with above-target density get negative letter-spacing
-	it('applies negative letter-spacing to above-target-density lines', () => {
+	// 3. Lines with above-target density get positive letter-spacing (opens up to reduce density)
+	it('applies positive letter-spacing to above-target-density lines', () => {
 		const words = Array.from({ length: 14 }, (_, i) => `word${i + 1}`).join(' ')
 		const el = makeElement(words)
 		const original = getCleanHTML(el)
-		// targetDensity=0.05: 1st line density=0.06 > target → negative spacing
+		// targetDensity=0.05: 1st line density=0.06 > target → positive spacing opens tracking
 		applyGrayValue(el, original, { targetDensity: 0.05, calibrationFactor: 2.0, maxAdjustment: 0.05 }, makeMockCanvas())
 		const lines = Array.from(el.querySelectorAll<HTMLElement>(`.${GRAY_VALUE_CLASSES.line}`))
 		expect(lines.length).toBeGreaterThanOrEqual(2)
-		// First line density = 0.06 > 0.05 target → negative spacing
+		// First line density = 0.06 > 0.05 target → positive spacing to open it up
 		const firstLine = lines[0]
 		const spacing = parseFloat(firstLine.style.letterSpacing)
-		expect(spacing).toBeLessThan(0)
+		expect(spacing).toBeGreaterThan(0)
 	})
 
 	// 4. removeGrayValue restores original HTML
