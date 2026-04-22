@@ -1,5 +1,7 @@
 # Steady Gray
 
+[![npm](https://img.shields.io/npm/v/%40liiift-studio%2Fsteadygray.svg)](https://www.npmjs.com/package/@liiift-studio/steadygray) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![part of liiift type-tools](https://img.shields.io/badge/liiift-type--tools-blueviolet)](https://github.com/Liiift-Studio/type-tools)
+
 Compositors call it colour — the aggregate grey of a text block. When some lines are denser than others, the paragraph looks uneven. Steady Gray measures ink pixel density per line by rendering to an off-screen Canvas, then adjusts letter-spacing until every line matches the target. Even colour, line by line.
 
 **[steadygray.com](https://steadygray.com)** · [npm](https://www.npmjs.com/package/@liiift-studio/steadygray) · [GitHub](https://github.com/Liiift-Studio/SteadyGray)
