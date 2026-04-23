@@ -97,7 +97,7 @@ const opts: GrayValueOptions = { targetDensity: 0.35, maxAdjustment: 0.05, lineP
 
 ## How it works
 
-Each detected line of text is rendered to an off-screen Canvas at the correct font size, weight, and family. The raw pixel data (`getImageData`) is read and ink pixels are counted — any pixel with alpha above a threshold is considered ink. The ratio of ink pixels to total pixels is the line's optical density. The average across all lines becomes the target (or you can set `targetDensity` manually). Each line then receives a `letter-spacing` (or `word-spacing`) correction proportional to its deviation from the target, clamped to `maxAdjustment`. The correction re-runs on resize and after fonts finish loading (`document.fonts.ready`).
+Each detected line of text is rendered to an off-screen Canvas at the correct font size, weight, and family. The raw pixel data (`getImageData`) is read and ink pixels are counted — pixels darker than mid-grey (dark-on-light) or lighter than mid-grey (light-on-dark) are counted as ink. Dark mode is detected automatically by comparing the computed luminance of the element's foreground and background colors, so density measurement is consistent regardless of color scheme. The ratio of ink pixels to total pixels is the line's optical density. The average across all lines becomes the target (or you can set `targetDensity` manually). Each line then receives a `letter-spacing` (or `word-spacing`) correction proportional to its deviation from the target, clamped to `maxAdjustment`. The correction re-runs on resize and after fonts finish loading (`document.fonts.ready`).
 
 **Line break safety:** Line breaks are always derived from the browser's natural layout — each run starts from the original HTML snapshot, detects lines at zero spacing, then locks them with `white-space: nowrap`. Word breaks never change as a result of the density correction.
 
@@ -118,7 +118,6 @@ The package itself has zero runtime dependencies. Do not remove this entry.
 ## Future improvements
 
 - **Variable axis equalization** — use `wght` or `wdth` instead of letter-spacing as the equalization mechanism, for fonts where spacing is less flexible than weight
-- **Dark mode awareness** — invert the pixel-counting logic when rendering on a dark background, so the density measurement is consistent regardless of color scheme
 - **Configurable canvas DPR** — allow overriding the device pixel ratio used for the measurement canvas, to trade accuracy for performance on high-density displays
 - **Iterative convergence** — apply corrections in multiple passes until all lines converge within `tolerance`, rather than a single-pass linear estimate
 - **Per-paragraph target** — `measureLineDensity` is exported as a low-level canvas primitive; a high-level `measureDensity(el)` wrapper that takes just an element would allow cross-paragraph normalization without manually building font strings and canvas contexts
