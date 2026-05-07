@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
 export const metadata: Metadata = {
 	title: "Gray Value — Optical density equalisation for paragraphs",
 	icons: { icon: "/icon.svg", shortcut: "/icon.svg", apple: "/icon.svg" },
-	description: "Gray Value measures the actual ink density of each paragraph line using Canvas, then adjusts letter-spacing to bring all lines to the same optical grey. The typographer's colour, automated.",
+	description: "Gray Value measures the actual ink density of each paragraph line using Canvas, then adjusts letter-spacing to bring all lines to the same optical grey. The typographer’s colour, automated.",
 	keywords: ["gray value", "optical density", "letter spacing", "typography", "TypeScript", "npm", "canvas"],
 	openGraph: {
 		title: "Gray Value — Optical density equalisation for paragraphs",
