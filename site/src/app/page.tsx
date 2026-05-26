@@ -97,6 +97,7 @@ removeGrayValue(el, original)`} />
 								<tr className="border-t border-white/10 hover:bg-white/5 transition-colors"><td className="py-2 pr-6 font-mono">tolerance</td><td className="py-2 pr-6">0.01</td><td className="py-2">Minimum density difference required before a correction is applied. Adjustments smaller than this threshold are skipped.</td></tr>
 								<tr className="border-t border-white/10 hover:bg-white/5 transition-colors"><td className="py-2 pr-6 font-mono">calibrationFactor</td><td className="py-2 pr-6">2.0</td><td className="py-2">Strength of the correction. Higher = more aggressive.</td></tr>
 								<tr className="border-t border-white/10 hover:bg-white/5 transition-colors"><td className="py-2 pr-6 font-mono">lineDetection</td><td className="py-2 pr-6">&apos;bcr&apos;</td><td className="py-2">&apos;bcr&apos; reads actual browser layout — ground truth, works with any font and inline HTML. &apos;canvas&apos; uses <a href="https://github.com/chenglou/pretext" className="underline opacity-70">@chenglou/pretext</a> for arithmetic line breaking with no forced reflow on resize. Install pretext separately.</td></tr>
+								<tr className="border-t border-white/10 hover:bg-white/5 transition-colors"><td className="py-2 pr-6 font-mono">active</td><td className="py-2 pr-6">true</td><td className="py-2">Set false to skip the correction entirely and restore the element to its original HTML. Useful for toggling the effect at runtime.</td></tr>
 							</tbody>
 						</table>
 					</div>
