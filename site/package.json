@@ -9,6 +9,7 @@
 		"lint": "eslint"
 	},
 	"dependencies": {
+		"@liiift-studio/magnettype": "^1.2.1",
 		"@chenglou/pretext": ">=0.0.5",
 		"@liiift-studio/steadygray": "file:..",
 		"next": "16.2.2",
