@@ -373,6 +373,14 @@ export function applyGrayValue(
 ): void {
 	if (typeof window === 'undefined') return
 
+	// E-ink / slow-refresh displays (Kindle, Remarkable, etc.) — CSS transitions
+	// produce no visible effect but the canvas pixel-counting work still runs.
+	// Skip the entire adjustment and restore the original HTML immediately.
+	if (window.matchMedia('(update: slow)').matches) {
+		element.innerHTML = originalHTML
+		return
+	}
+
 	// Save scroll position — iOS Safari does not support overflow-anchor: none
 	const scrollY = window.scrollY
 

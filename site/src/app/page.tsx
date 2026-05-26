@@ -100,6 +100,12 @@ removeGrayValue(el, original)`} />
 							</tbody>
 						</table>
 					</div>
+				<div className="flex flex-col gap-3">
+					<p className="opacity-50">Accessibility &amp; display compatibility</p>
+					<p className="text-sm opacity-70 leading-relaxed">
+						steadyGray skips the canvas measurement and spacing correction on e-ink and other slow-refresh displays (Kindle, reMarkable, etc.) via a <code className="font-mono text-xs opacity-90">(update: slow)</code> <code className="font-mono text-xs opacity-90">matchMedia</code> guard — CSS transitions produce no visible effect on those panels but the pixel-counting work would still run. The element is restored to its original HTML and the function returns early.
+					</p>
+				</div>
 				</div>
 			</section>
 
