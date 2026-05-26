@@ -23,11 +23,11 @@ function luxToCalibration(lux: number): number {
 }
 
 /** Labelled range slider with value displayed below the track */
-function Slider({ label, value, min, max, step, onChange, fmt, dimmed }: { label: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void; fmt?: (v: number) => string; dimmed?: boolean }) {
+function Slider({ label, value, min, max, step, onChange, fmt, dimmed, title }: { label: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void; fmt?: (v: number) => string; dimmed?: boolean; title?: string }) {
 	return (
 		<div className="flex flex-col gap-1" style={{ opacity: dimmed ? 0.4 : 1, transition: 'opacity 0.2s ease' }}>
 			<span className="text-xs uppercase tracking-widest opacity-50">{label}</span>
-			<input type="range" min={min} max={max} step={step} value={value} aria-label={label} onChange={e => onChange(Number(e.target.value))} onTouchStart={e => e.stopPropagation()} style={{ touchAction: 'none' }} disabled={dimmed} />
+			<input type="range" min={min} max={max} step={step} value={value} aria-label={label} title={title} onChange={e => onChange(Number(e.target.value))} onTouchStart={e => e.stopPropagation()} style={{ touchAction: 'none' }} disabled={dimmed} />
 			<span className="tabular-nums text-xs opacity-50 text-right">{fmt ? fmt(value) : value}</span>
 		</div>
 	)
@@ -294,6 +294,7 @@ export default function Demo() {
 					step={MAX_ADJ_CFG[method].step}
 					onChange={setMaxAdjustment}
 					fmt={v => `${v.toFixed(MAX_ADJ_CFG[method].decimals)} ${MAX_ADJ_CFG[method].unit}`}
+					title="Maximum allowed adjustment per line — larger values let steadyGray correct more unevenly-coloured lines, but may produce noticeable spacing shifts"
 				/>
 				<Slider
 					label="Sensitivity"
@@ -304,12 +305,24 @@ export default function Demo() {
 					onChange={setCalibrationFactor}
 					fmt={v => v.toFixed(CAL_CFG[method].decimals)}
 					dimmed={ambientMode}
+					title="Controls how aggressively pixel-density differences between lines are interpreted — higher values cause steadyGray to treat lighter lines as more unequal and apply stronger corrections"
 				/>
 			</div>
 			<div className="flex flex-wrap items-center gap-3 mb-4">
 				<span className="text-xs uppercase tracking-widest opacity-50">Method</span>
 				{(['letter-spacing', 'word-spacing', 'font-weight', 'font-width'] as const).map(v => (
-					<button key={v} onClick={() => changeMethod(v)} className="text-xs px-3 py-1 rounded-full border transition-opacity" style={{ borderColor: 'currentColor', opacity: method === v ? 1 : 0.5, background: method === v ? 'var(--btn-bg)' : 'transparent' }}>{v}</button>
+					<button
+						key={v}
+						onClick={() => changeMethod(v)}
+						className="text-xs px-3 py-1 rounded-full border transition-opacity"
+						style={{ borderColor: 'currentColor', opacity: method === v ? 1 : 0.5, background: method === v ? 'var(--btn-bg)' : 'transparent' }}
+						title={
+							v === 'letter-spacing' ? 'Equalise line colour by nudging the space between individual characters — works with any font' :
+							v === 'word-spacing'   ? 'Equalise line colour by nudging the space between words — subtler than letter-spacing on ragged lines' :
+							v === 'font-weight'    ? 'Equalise line colour by varying font weight per line — requires a variable font with a wght axis' :
+							                        'Equalise line colour by varying the condensed-to-extended width of each line — requires a variable font with a wdth axis'
+						}
+					>{v}</button>
 				))}
 
 				{/* Cursor mode — desktop/hover-capable devices only */}
@@ -374,6 +387,7 @@ export default function Demo() {
 						step={100}
 						onChange={setLux}
 						fmt={v => `${v.toLocaleString()} lx — ${luxLabel(v)}  →  sensitivity ${luxToCalibration(v).toFixed(1)}`}
+						title="Simulates the brightness of the surrounding environment — brighter conditions bleed background into type and require a higher sensitivity to maintain even typographic colour"
 					/>
 				</div>
 			)}
@@ -388,6 +402,7 @@ export default function Demo() {
 				)}
 				<div
 					aria-label="Drag to inspect"
+					title="Drag this lens across the paragraph to compare adjusted and unadjusted rendering side by side through a blurred viewport"
 					onPointerDown={handleCirclePointerDown}
 					onPointerMove={handleCirclePointerMove}
 					onPointerUp={handleCirclePointerUp}
