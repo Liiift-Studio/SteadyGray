@@ -3,3 +3,4 @@ export { applyGrayValue, removeGrayValue, getCleanHTML, measureLineDensity } fro
 export { useGrayValue } from './react/useGrayValue'
 export { GrayValueText } from './react/GrayValueText'
 export type { GrayValueOptions } from './core/types'
+export { GRAY_VALUE_CLASSES } from './core/types'

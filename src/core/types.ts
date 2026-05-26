@@ -2,6 +2,8 @@
 
 /** Options controlling the gray-value density-equalization algorithm */
 export interface GrayValueOptions {
+	/** When false, skip all processing and restore original HTML. Default: true */
+	active?: boolean
 	/**
 	 * Density measurement method. Default: 'canvas'
 	 *

@@ -373,10 +373,16 @@ export function applyGrayValue(
 ): void {
 	if (typeof window === 'undefined') return
 
+	// active:false — skip all processing and restore original HTML immediately
+	if ((options.active ?? true) === false) {
+		element.innerHTML = originalHTML
+		return
+	}
+
 	// E-ink / slow-refresh displays (Kindle, Remarkable, etc.) — CSS transitions
 	// produce no visible effect but the canvas pixel-counting work still runs.
 	// Skip the entire adjustment and restore the original HTML immediately.
-	if (window.matchMedia('(update: slow)').matches) {
+	if (window.matchMedia?.('(update: slow)')?.matches) {
 		element.innerHTML = originalHTML
 		return
 	}
