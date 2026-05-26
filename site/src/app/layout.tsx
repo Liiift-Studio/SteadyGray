@@ -5,21 +5,21 @@ import { Inter } from "next/font/google"
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
 
 export const metadata: Metadata = {
-	title: "Gray Value — Optical density equalisation for paragraphs",
+	title: "steadyGray — Optical density equalisation for paragraphs | Type Tools",
 	icons: { icon: "/icon.svg", shortcut: "/icon.svg", apple: "/icon.svg" },
-	description: "Gray Value measures the actual ink density of each paragraph line using Canvas, then adjusts letter-spacing to bring all lines to the same optical grey. The typographer’s colour, automated.",
-	keywords: ["gray value", "optical density", "letter spacing", "typography", "TypeScript", "npm", "canvas"],
+	description: "steadyGray measures the actual ink density of each paragraph line using Canvas pixel sampling, then adjusts letter-spacing to bring all lines to the same optical grey. Zero dependencies.",
+	keywords: ["steadygray", "gray value", "optical density", "paragraph color", "letter spacing", "typography", "canvas pixel sampling", "typesetting", "readability", "TypeScript", "npm", "react"],
 	openGraph: {
-		title: "Gray Value — Optical density equalisation for paragraphs",
-		description: "Equalize the visual grey of every paragraph line. Canvas pixel sampling, per-line letter-spacing correction.",
+		title: "steadyGray — Optical density equalisation for paragraphs",
+		description: "Equalize the visual grey of every paragraph line. Canvas pixel sampling, per-line letter-spacing correction. Zero dependencies.",
 		url: "https://steadygray.com",
-		siteName: "Gray Value",
+		siteName: "steadyGray",
 		type: "website",
 	},
 	twitter: {
 		card: "summary_large_image",
-		title: "Gray Value — Optical density equalisation for paragraphs",
-		description: "Equalize the visual grey of every paragraph line. Canvas pixel sampling, per-line letter-spacing correction.",
+		title: "steadyGray — Optical density equalisation for paragraphs",
+		description: "Equalize the visual grey of every paragraph line. Canvas pixel sampling, per-line letter-spacing correction. Zero dependencies.",
 	},
 	metadataBase: new URL("https://steadygray.com"),
 }

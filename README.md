@@ -84,14 +84,35 @@ const opts: GrayValueOptions = { targetDensity: 0.35, maxAdjustment: 0.05, lineP
 
 | Option | Default | Description |
 |--------|---------|-------------|
+| `active` | `true` | Set `false` to skip all processing and restore the element to its original HTML |
 | `targetDensity` | `'auto'` | Target optical density ratio (0–1). `'auto'` uses the average of all measured lines |
-| `method` | `'letter-spacing'` | CSS spacing property to adjust per line: `'letter-spacing'` or `'word-spacing'` |
-| `maxAdjustment` | `0.05` | Maximum spacing correction in em units. Positive and negative adjustments are both clamped to this value |
+| `densityMode` | `'canvas'` | `'canvas'` renders each line off-screen and counts ink pixels. `'glyph-path'` uses `opentype.js` to compute true glyph area via bezier paths — font-exact, independent of rendering engine. Requires `npm install opentype.js` and a same-origin font URL via `fontUrl` |
+| `fontUrl` | — | URL of the font file for glyph-path measurement. Required when `densityMode: 'glyph-path'`. Must be same-origin or CORS-enabled |
+| `method` | `'letter-spacing'` | CSS property to adjust per line: `'letter-spacing'`, `'word-spacing'`, `'font-weight'`, or `'font-width'` |
+| `maxAdjustment` | `0.05` | Maximum correction magnitude. Em units for letter/word-spacing; weight units for font-weight; wdth units for font-width |
 | `tolerance` | `0.01` | Minimum density difference before a correction is applied. Lines within this threshold of the target are left untouched |
-| `calibrationFactor` | `2` | Correction strength — em spacing change per 1.0 density unit difference. Increase for more aggressive corrections |
+| `calibrationFactor` | `2` | Correction strength — magnitude change per 1.0 density unit difference. Increase for more aggressive corrections |
 | `lineDetection` | `'bcr'` | `'bcr'` reads actual browser layout — ground truth, works with any font and inline HTML. `'canvas'` uses `@chenglou/pretext` for arithmetic line breaking with no forced reflow on resize (`npm install @chenglou/pretext`). Falls back to `'bcr'` while pretext loads |
-| `linePreservation` | `'none'` | `'none'` — line widths vary with the spacing correction (bounded by `maxAdjustment`). `'scale'` — applies a `scaleX` transform after correction so every line occupies exactly its original width; the density difference remains visible in glyph spacing but no line ever overflows the container |
+| `linePreservation` | `'none'` | `'none'` — line widths vary with the spacing correction. `'scale'` — applies a `scaleX` transform after correction so lines never overflow the container |
+| `mode` | `'equalize'` | `'equalize'` brings all lines toward the same optical density. `'readability'` weights complex lines toward a slightly higher spacing target |
+| `complexity` | `'word-length'` | Complexity metric for readability mode: `'word-length'` (no deps), or `'syllable'` (requires `npm install syllable`) |
+| `strength` | `0.5` | How aggressively to weight complex lines in readability mode. Range 0–1 |
 | `as` | `'p'` | HTML element to render. *(React component only)* |
+
+---
+
+## API reference
+
+| Export | Description |
+|--------|-------------|
+| `applyGrayValue(el, originalHTML, options?)` | Measure ink density per line and apply spacing corrections. |
+| `removeGrayValue(el, originalHTML)` | Restore the element to its original markup. |
+| `getCleanHTML(el)` | Return the element's inner HTML with all injected spans removed. |
+| `measureLineDensity(ctx, text, font, width, height)` | Low-level canvas primitive: render a line of text and return its ink pixel ratio. |
+| `useGrayValue` | React hook: `(options?) => ref`. Re-runs on resize and after fonts load. |
+| `GrayValueText` | React component. Accepts all `GrayValueOptions` plus `as` prop. |
+| `GrayValueOptions` | TypeScript interface for all options. |
+| `GRAY_VALUE_CLASSES` | CSS class names injected by the algorithm (`gv-word`, `gv-line`, `gv-probe`). |
 
 ---
 
@@ -124,4 +145,4 @@ The package itself has zero runtime dependencies. Do not remove this entry.
 
 ---
 
-Current version: 0.1.7
+Current version: 1.2.1
