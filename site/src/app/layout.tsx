@@ -22,6 +22,7 @@ export const metadata: Metadata = {
 		description: "Equalize the visual grey of every paragraph line. Canvas pixel sampling, per-line letter-spacing correction. Zero dependencies.",
 	},
 	metadataBase: new URL("https://steadygray.com"),
+	alternates: { canonical: "https://steadygray.com" },
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
