@@ -668,7 +668,7 @@ export function applyGrayValue(
 		let lineStyle: string
 		if (method === 'font-weight') {
 			// Dense lines get positive adj → subtract to lighten; sparse lines get negative adj → add to darken.
-			const newWeight = Math.max(1, Math.min(999, Math.round(baseWeight - adj)))
+			const newWeight = Math.max(1, Math.min(1000, Math.round(baseWeight - adj)))
 			lineStyle = `${LINE_STYLE}font-weight:${newWeight};`
 		} else if (method === 'font-width') {
 			// Dense lines get positive adj → subtract to narrow (less ink); sparse → add to widen.
@@ -680,13 +680,19 @@ export function applyGrayValue(
 			lineStyle = `${LINE_STYLE}${spacingProp}:${adj}em;`
 		}
 
-		// Reconstruct line text from spans; trim leading whitespace on each line start
-		const lineText = line.spans
+		// Reconstruct line text from spans; trim leading whitespace on each line start.
+		// Escape HTML special characters: textContent returns decoded Unicode (e.g. '<'
+		// not '&lt;'), so bare < > & would be mis-parsed when assigned to innerHTML.
+		const rawLineText = line.spans
 			.map((s, si) => {
 				const t = s.textContent ?? ''
 				return si === 0 ? t.replace(/^[^\S\u00a0]+/, '') : t
 			})
 			.join('')
+		const lineText = rawLineText
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
 
 		html += `<span class="${GRAY_VALUE_CLASSES.line}" style="${lineStyle}">${lineText}</span>`
 		if (i < lines.length - 1) {

@@ -70,7 +70,11 @@ export interface GrayValueOptions {
 	maxAdjustment?: number
 
 	/**
-	 * Acceptable density difference before a line is considered equalized.
+	 * Minimum calibrated adjustment magnitude below which no spacing change is applied.
+	 * The comparison is against `(density - target) * calibrationFactor`, so the
+	 * effective density threshold scales with `calibrationFactor`. At the default
+	 * calibrationFactor of 2.0, a tolerance of 0.01 suppresses density deltas smaller
+	 * than 0.005. Increase to suppress more corrections; decrease for finer sensitivity.
 	 * Default: 0.01
 	 */
 	tolerance?: number
