@@ -1,7 +1,7 @@
 "use client"
 
 // Interactive gray value demo with cursor/gyro/ambient-light modes, drag-to-inspect circle, and live controls
-import { useState, useEffect, useDeferredValue, useRef } from "react"
+import { useState, useEffect, useDeferredValue, useRef, useCallback, useMemo } from "react"
 import { GrayValueText } from "@liiift-studio/steadygray"
 
 const SAMPLE = `The colour of a page — the compositor’s term for the aggregate grey of the text block — is determined by the ratio of ink to space across every line. A line with many narrow letters sits lighter than one with wide letters and generous spacing. Print compositors corrected this by hand, adjusting word spaces to equalise the grey. No web tool has automated this measurement. Gray Value uses Canvas to sample the actual ink pixels in each rendered line, then adjusts letter-spacing to bring every line to the same optical density. The adjustment is invisible when correct — all you notice is that the paragraph looks even.`
@@ -23,12 +23,20 @@ function luxToCalibration(lux: number): number {
 }
 
 /** Labelled range slider with value displayed below the track */
-function Slider({ label, value, min, max, step, onChange, fmt, dimmed, title }: { label: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void; fmt?: (v: number) => string; dimmed?: boolean; title?: string }) {
+function Slider({ label, value, min, max, step, onChange, fmt, dimmed, title, describedBy }: { label: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void; fmt?: (v: number) => string; dimmed?: boolean; title?: string; describedBy?: string }) {
+	const valueId = `${label.replace(/\s+/g, '-').toLowerCase()}-value`
 	return (
 		<div className="flex flex-col gap-1" style={{ opacity: dimmed ? 0.4 : 1, transition: 'opacity 0.2s ease' }}>
 			<span className="text-xs uppercase tracking-widest opacity-50">{label}</span>
-			<input type="range" min={min} max={max} step={step} value={value} aria-label={label} title={title} onChange={e => onChange(Number(e.target.value))} onTouchStart={e => e.stopPropagation()} style={{ touchAction: 'none' }} disabled={dimmed} />
-			<span className="tabular-nums text-xs opacity-50 text-right">{fmt ? fmt(value) : value}</span>
+			<input
+				type="range" min={min} max={max} step={step} value={value}
+				aria-label={label} aria-describedby={`${valueId}${describedBy ? ` ${describedBy}` : ''}`}
+				title={title}
+				onChange={e => onChange(Number(e.target.value))}
+				style={{ touchAction: 'pan-y', pointerEvents: dimmed ? 'none' : undefined }}
+				disabled={dimmed}
+			/>
+			<span id={valueId} className="tabular-nums text-xs opacity-50 text-right">{fmt ? fmt(value) : value}</span>
 		</div>
 	)
 }
@@ -38,7 +46,8 @@ function BeforeAfterToggle({ active, onClick }: { active: boolean; onClick: () =
 	return (
 		<button
 			onClick={onClick}
-			aria-label="Toggle before/after comparison"
+			aria-label={active ? 'Comparison active — hide' : 'Toggle before/after comparison'}
+			aria-pressed={active}
 			title={active ? 'Hide comparison' : 'Compare without effect'}
 			style={{
 				position: 'absolute', bottom: 0, right: 0,
@@ -50,10 +59,10 @@ function BeforeAfterToggle({ active, onClick }: { active: boolean; onClick: () =
 				cursor: 'pointer', transition: 'opacity 0.15s ease',
 			}}
 		>
-			<svg width="14" height="10" viewBox="0 0 14 10" fill="none">
-				<rect x="0.5" y="0.5" width="13" height="9" rx="1" stroke="currentColor" strokeWidth="1"/>
-				<line x1="7" y1="0.5" x2="7" y2="9.5" stroke="currentColor" strokeWidth="1"/>
-				<rect x="8" y="1.5" width="5" height="7" fill="currentColor"/>
+			<svg width="14" height="10" viewBox="0 0 14 10" fill="none" aria-hidden="true">
+				<rect aria-hidden="true" x="0.5" y="0.5" width="13" height="9" rx="1" stroke="currentColor" strokeWidth="1"/>
+				<line aria-hidden="true" x1="7" y1="0.5" x2="7" y2="9.5" stroke="currentColor" strokeWidth="1"/>
+				<rect aria-hidden="true" x="8" y="1.5" width="5" height="7" fill="currentColor"/>
 			</svg>
 		</button>
 	)
@@ -158,11 +167,11 @@ export default function Demo() {
 	const dragging = useRef(false)
 	const containerRef = useRef<HTMLDivElement>(null)
 
-	const handleCirclePointerDown = (e: React.PointerEvent) => {
+	const handleCirclePointerDown = useCallback((e: React.PointerEvent) => {
 		e.currentTarget.setPointerCapture(e.pointerId)
 		dragging.current = true
-	}
-	const handleCirclePointerMove = (e: React.PointerEvent) => {
+	}, [])
+	const handleCirclePointerMove = useCallback((e: React.PointerEvent) => {
 		if (!dragging.current || !containerRef.current) return
 		if (!hasDragged) setHasDragged(true)
 		const rect = containerRef.current.getBoundingClientRect()
@@ -170,11 +179,14 @@ export default function Demo() {
 			x: Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)),
 			y: Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height)),
 		})
-	}
-	const handleCirclePointerUp = () => { dragging.current = false }
+	}, [hasDragged])
+	const handleCirclePointerUp = useCallback(() => { dragging.current = false }, [])
 
 	// Effective calibrationFactor: ambient-driven when ambientMode is active, slider-driven otherwise
-	const effectiveCalibration = ambientMode ? luxToCalibration(lux) : calibrationFactor
+	const effectiveCalibration = useMemo(
+		() => ambientMode ? luxToCalibration(lux) : calibrationFactor,
+		[ambientMode, lux, calibrationFactor]
+	)
 
 	// Effective maxAdjustment: gyro-driven when gyroMode is active, slider-driven otherwise
 	const effectiveMax = gyroMode ? gyroMaxAdjustment : maxAdjustment
@@ -183,11 +195,19 @@ export default function Demo() {
 	const dCal = useDeferredValue(effectiveCalibration)
 	const dMethod = useDeferredValue(method)
 
-	// Cursor mode — Y controls maxAdjustment (inverted: top = 0.15, bottom = 0.01)
+	// Cursor mode — Y controls maxAdjustment relative to the demo container (not window height)
+	// Using container rect avoids sudden jumps when browser chrome resizes on mobile scroll
 	useEffect(() => {
 		if (!cursorMode) return
 		const handleMove = (e: MouseEvent) => {
-			setMaxAdjustment(parseFloat((0.01 + (1 - e.clientY / window.innerHeight) * 0.14).toFixed(3)))
+			const rect = containerRef.current?.getBoundingClientRect()
+			if (!rect) {
+				// Fallback: map against viewport if container is not yet measured
+				setMaxAdjustment(parseFloat((0.01 + (1 - e.clientY / window.innerHeight) * 0.14).toFixed(3)))
+				return
+			}
+			const relY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height))
+			setMaxAdjustment(parseFloat((0.01 + (1 - relY) * 0.14).toFixed(3)))
 		}
 		const handleKey = (e: KeyboardEvent) => {
 			if (e.key === 'Escape') setCursorMode(false)
@@ -225,22 +245,25 @@ export default function Demo() {
 		}
 	}, [gyroMode])
 
+	// Gyro permission denied state — shown briefly on the button
+	const [gyroDenied, setGyroDenied] = useState(false)
+
 	// Change method and reset max/calibration to per-method defaults
-	const changeMethod = (m: Method) => {
+	const changeMethod = useCallback((m: Method) => {
 		setMethod(m)
 		setMaxAdjustment(METHOD_DEFAULTS[m].max)
 		setCalibrationFactor(METHOD_DEFAULTS[m].cal)
-	}
+	}, [])
 
 	// Toggle cursor mode — turns off gyro and ambient if active
-	const toggleCursor = () => {
+	const toggleCursor = useCallback(() => {
 		setGyroMode(false)
 		setAmbientMode(false)
 		setCursorMode(v => !v)
-	}
+	}, [])
 
 	// Toggle gyro mode — requests iOS permission if needed, turns off cursor and ambient if active
-	const toggleGyro = async () => {
+	const toggleGyro = useCallback(async () => {
 		if (gyroMode) {
 			setGyroMode(false)
 			return
@@ -250,24 +273,35 @@ export default function Demo() {
 		const DOE = DeviceOrientationEvent as typeof DeviceOrientationEvent & {
 			requestPermission?: () => Promise<PermissionState>
 		}
-		if (typeof DOE.requestPermission === 'function') {
-			const permission = await DOE.requestPermission()
-			if (permission === 'granted') setGyroMode(true)
-		} else {
-			setGyroMode(true)
+		try {
+			if (typeof DOE.requestPermission === 'function') {
+				const permission = await DOE.requestPermission()
+				if (permission === 'granted') {
+					setGyroMode(true)
+				} else {
+					// Show "Permission denied" on the button briefly
+					setGyroDenied(true)
+					setTimeout(() => setGyroDenied(false), 2500)
+				}
+			} else {
+				setGyroMode(true)
+			}
+		} catch {
+			setGyroDenied(true)
+			setTimeout(() => setGyroDenied(false), 2500)
 		}
-	}
+	}, [gyroMode])
 
 	// Toggle ambient mode — turns off cursor and gyro if active
-	const toggleAmbient = () => {
+	const toggleAmbient = useCallback(() => {
 		setCursorMode(false)
 		setGyroMode(false)
 		setAmbientMode(v => !v)
-	}
+	}, [])
 
 	// In font-weight mode, use font-weight (not fontVariationSettings) so per-line
 	// weight adjustments on child spans are not overridden by an inherited "wght" axis.
-	const sampleStyle: React.CSSProperties = method === 'font-weight'
+	const sampleStyle = useMemo<React.CSSProperties>(() => method === 'font-weight'
 		? {
 			fontFamily: "var(--font-merriweather), serif",
 			fontSize: "1.125rem",
@@ -279,12 +313,27 @@ export default function Demo() {
 			fontSize: "1.125rem",
 			lineHeight: "1.8",
 			fontVariationSettings: '"wght" 300, "opsz" 18, "wdth" 100',
-		}
+		}, [method])
 
-	const activeMode = cursorMode || gyroMode || ambientMode
+	const activeMode = useMemo(() => cursorMode || gyroMode || ambientMode, [cursorMode, gyroMode, ambientMode])
+
+	// Memoised method button titles to avoid recreation on every render
+	const METHOD_TITLES = useMemo<Record<Method, string>>(() => ({
+		'letter-spacing': 'Equalise line colour by nudging the space between individual characters — works with any font',
+		'word-spacing':   'Equalise line colour by nudging the space between words — subtler than letter-spacing on ragged lines',
+		'font-weight':    'Equalise line colour by varying font weight per line — requires a variable font with a wght axis',
+		'font-width':     'Equalise line colour by varying the condensed-to-extended width of each line — requires a variable font with a wdth axis',
+	}), [])
 
 	return (
 		<div className="w-full">
+			{/* Screen reader live region — announces mode changes */}
+			<div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+				{cursorMode ? 'Cursor mode active. Move cursor up or down to adjust max correction. Press Escape to exit.' :
+				 gyroMode   ? 'Gyro mode active. Tilt device front and back to adjust max correction.' :
+				 ambientMode ? 'Ambient mode active. Use the lux slider to simulate lighting conditions.' : ''}
+			</div>
+
 			<div className="grid grid-cols-2 gap-6 mb-6">
 				<Slider
 					label={`Max adjustment (${MAX_ADJ_CFG[method].unit})`}
@@ -305,23 +354,26 @@ export default function Demo() {
 					onChange={setCalibrationFactor}
 					fmt={v => v.toFixed(CAL_CFG[method].decimals)}
 					dimmed={ambientMode}
+					describedBy={ambientMode ? 'sensitivity-ambient-note' : undefined}
 					title="Controls how aggressively pixel-density differences between lines are interpreted — higher values cause steadyGray to treat lighter lines as more unequal and apply stronger corrections"
 				/>
+				{ambientMode && (
+					<span id="sensitivity-ambient-note" className="sr-only">
+						Sensitivity is controlled automatically by the ambient light slider in ambient mode.
+					</span>
+				)}
 			</div>
-			<div className="flex flex-wrap items-center gap-3 mb-4">
-				<span className="text-xs uppercase tracking-widest opacity-50">Method</span>
+			<div role="radiogroup" aria-label="Adjustment method" className="flex flex-wrap items-center gap-3 mb-4">
+				<span className="text-xs uppercase tracking-widest opacity-50" aria-hidden="true">Method</span>
 				{(['letter-spacing', 'word-spacing', 'font-weight', 'font-width'] as const).map(v => (
 					<button
 						key={v}
+						role="radio"
+						aria-checked={method === v}
 						onClick={() => changeMethod(v)}
 						className="text-xs px-3 py-1 rounded-full border transition-opacity"
 						style={{ borderColor: 'currentColor', opacity: method === v ? 1 : 0.5, background: method === v ? 'var(--btn-bg)' : 'transparent' }}
-						title={
-							v === 'letter-spacing' ? 'Equalise line colour by nudging the space between individual characters — works with any font' :
-							v === 'word-spacing'   ? 'Equalise line colour by nudging the space between words — subtler than letter-spacing on ragged lines' :
-							v === 'font-weight'    ? 'Equalise line colour by varying font weight per line — requires a variable font with a wght axis' :
-							                        'Equalise line colour by varying the condensed-to-extended width of each line — requires a variable font with a wdth axis'
-						}
+						title={METHOD_TITLES[v]}
 					>{v}</button>
 				))}
 
@@ -329,6 +381,7 @@ export default function Demo() {
 				{showCursor && (
 					<button
 						onClick={toggleCursor}
+						aria-pressed={cursorMode}
 						title="Move cursor vertically to control max adjustment"
 						className="flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border transition-all ml-auto"
 						style={{
@@ -346,22 +399,24 @@ export default function Demo() {
 				{showGyro && (
 					<button
 						onClick={toggleGyro}
+						aria-pressed={gyroMode}
 						title="Tilt your device front/back to control max adjustment"
 						className="flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border transition-all ml-auto"
 						style={{
 							borderColor: 'currentColor',
-							opacity: gyroMode ? 1 : 0.5,
+							opacity: gyroMode || gyroDenied ? 1 : 0.5,
 							background: gyroMode ? 'var(--btn-bg)' : 'transparent',
 						}}
 					>
 						<GyroIcon />
-						<span>{gyroMode ? 'Tilt active' : 'Gyro'}</span>
+						<span>{gyroDenied ? 'Permission denied' : gyroMode ? 'Tilt active' : 'Gyro'}</span>
 					</button>
 				)}
 
 				{/* Ambient light mode — always shown */}
 				<button
 					onClick={toggleAmbient}
+					aria-pressed={ambientMode}
 					title="Simulate ambient light conditions affecting perceived contrast"
 					className="flex items-center gap-1.5 text-xs px-3 py-1 rounded-full border transition-all"
 					style={{
@@ -376,7 +431,7 @@ export default function Demo() {
 				</button>
 			</div>
 
-			{/* Lux slider — visible only in ambient mode */}
+			{/* Lux slider — visible only in ambient mode; finer step at lower values */}
 			{ambientMode && (
 				<div className="mb-6">
 					<Slider
@@ -384,7 +439,7 @@ export default function Demo() {
 						value={lux}
 						min={0}
 						max={50000}
-						step={100}
+						step={lux < 500 ? 10 : 100}
 						onChange={setLux}
 						fmt={v => `${v.toLocaleString()} lx — ${luxLabel(v)}  →  sensitivity ${luxToCalibration(v).toFixed(1)}`}
 						title="Simulates the brightness of the surrounding environment — brighter conditions bleed background into type and require a higher sensitivity to maintain even typographic colour"
@@ -400,50 +455,64 @@ export default function Demo() {
 				{beforeAfter && (
 					<p aria-hidden style={{ ...sampleStyle, position: 'absolute', top: 0, left: 0, width: '100%', margin: 0, opacity: 0.25, pointerEvents: 'none' }}>{SAMPLE}</p>
 				)}
-				<div
-					aria-label="Drag to inspect"
-					title="Drag this lens across the paragraph to compare adjusted and unadjusted rendering side by side through a blurred viewport"
-					onPointerDown={handleCirclePointerDown}
-					onPointerMove={handleCirclePointerMove}
-					onPointerUp={handleCirclePointerUp}
-					style={{
-						position: 'absolute',
-						left: `${circlePos.x * 100}%`,
-						top: `${circlePos.y * 100}%`,
-						transform: 'translate(-50%, -50%)',
-						width: INSPECTOR_R * 2,
-						height: INSPECTOR_R * 2,
-						borderRadius: '50%',
-						backdropFilter: 'blur(7px)',
-						WebkitBackdropFilter: 'blur(7px)',
-						border: '1px solid rgba(255,255,255,0.15)',
-						boxShadow: '0 0 0 1px rgba(0,0,0,0.25)',
-						cursor: 'grab',
-						touchAction: 'none',
-					}}
-				/>
-				{!hasDragged && (
-					<p
-						aria-hidden
-						style={{
-							position: 'absolute',
-							left: `${circlePos.x * 100}%`,
-							top: `${circlePos.y * 100}%`,
-							transform: 'translate(-50%, 20px)',
-							fontSize: 11,
-							opacity: 0.4,
-							pointerEvents: 'none',
-							whiteSpace: 'nowrap',
-							margin: 0,
-						}}
-					>
-						drag to inspect
-					</p>
+				{/* Inspector circle — only rendered when beforeAfter comparison is active */}
+				{beforeAfter && (
+					<>
+						<div
+							role="application"
+							aria-label="Inspector lens — drag to compare adjusted and unadjusted rendering"
+							tabIndex={0}
+							title="Drag this lens across the paragraph to compare adjusted and unadjusted rendering side by side through a blurred viewport"
+							onPointerDown={handleCirclePointerDown}
+							onPointerMove={handleCirclePointerMove}
+							onPointerUp={handleCirclePointerUp}
+							onKeyDown={e => {
+								const step = 0.05
+								if (e.key === 'ArrowLeft')  setCirclePos(p => ({ ...p, x: Math.max(0, p.x - step) }))
+								if (e.key === 'ArrowRight') setCirclePos(p => ({ ...p, x: Math.min(1, p.x + step) }))
+								if (e.key === 'ArrowUp')    setCirclePos(p => ({ ...p, y: Math.max(0, p.y - step) }))
+								if (e.key === 'ArrowDown')  setCirclePos(p => ({ ...p, y: Math.min(1, p.y + step) }))
+							}}
+							style={{
+								position: 'absolute',
+								left: `${circlePos.x * 100}%`,
+								top: `${circlePos.y * 100}%`,
+								transform: 'translate(-50%, -50%)',
+								width: INSPECTOR_R * 2,
+								height: INSPECTOR_R * 2,
+								borderRadius: '50%',
+								backdropFilter: 'blur(7px)',
+								WebkitBackdropFilter: 'blur(7px)',
+								border: '1px solid rgba(255,255,255,0.15)',
+								boxShadow: '0 0 0 1px rgba(0,0,0,0.25)',
+								cursor: 'grab',
+								touchAction: 'none',
+							}}
+						/>
+						{!hasDragged && (
+							<p
+								aria-hidden
+								style={{
+									position: 'absolute',
+									left: `${circlePos.x * 100}%`,
+									top: `${circlePos.y * 100}%`,
+									transform: 'translate(-50%, 20px)',
+									fontSize: 11,
+									opacity: 0.4,
+									pointerEvents: 'none',
+									whiteSpace: 'nowrap',
+									margin: 0,
+								}}
+							>
+								drag to inspect
+							</p>
+						)}
+					</>
 				)}
 				<BeforeAfterToggle active={beforeAfter} onClick={() => setComparing(v => !v)} />
 			</div>
 
-			{/* Caption */}
+			{/* Caption — uses non-deferred method so it reflects the click immediately */}
 			<div className="flex items-center gap-3 mt-8">
 				{ambientMode ? (
 					<p className="text-xs opacity-50 italic" style={{ lineHeight: "1.8" }}>
