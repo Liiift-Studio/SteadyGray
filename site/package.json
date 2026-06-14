@@ -10,6 +10,7 @@
 	},
 	"dependencies": {
 		"@chenglou/pretext": ">=0.0.5",
+		"@liiift-studio/magnettype": "^1.2.4",
 		"@liiift-studio/steadygray": "file:..",
 		"next": "16.2.2",
 		"opentype.js": "^1.3.4",
