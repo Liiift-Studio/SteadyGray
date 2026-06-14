@@ -5,6 +5,7 @@ import ToolDirectory from "@/components/ToolDirectory"
 import { version } from "../../../package.json"
 import { version as siteVersion } from "../../package.json"
 import SiteFooter from "../components/SiteFooter"
+import { MagnetChar } from "@liiift-studio/magnettype"
 
 export default function Home() {
 	return (
@@ -13,27 +14,27 @@ export default function Home() {
 			{/* Hero */}
 			<section className="w-full max-w-2xl lg:max-w-5xl flex flex-col gap-6">
 				<div className="flex flex-col gap-2">
-					<p className="text-xs uppercase tracking-widest opacity-50">steadygray</p>
+					<p className="text-xs uppercase tracking-[0.18em] font-medium text-muted">steadygray</p>
 					<h1 className="text-4xl lg:text-8xl xl:text-9xl" style={{ fontFamily: "var(--font-merriweather), serif", fontVariationSettings: '"wght" 300, "opsz" 144', lineHeight: "1.05em" }}>
-						<span>Even colour,</span><br />
-						<span style={{ opacity: 0.5, fontStyle: "italic" }}>line by line.</span>
+						<MagnetChar as="span" minWeight={300} maxWeight={800} spreadRadius={220} fixedAxes={{ opsz: 144 }}>Even colour,</MagnetChar><br />
+						<MagnetChar as="span" minWeight={300} maxWeight={800} spreadRadius={220} fixedAxes={{ opsz: 144 }} style={{ color: "var(--foreground-subtle)", fontStyle: "italic" }}>line by line.</MagnetChar>
 					</h1>
 				</div>
 				<div className="flex items-center gap-4">
 					<CopyInstall />
-					<a href="https://github.com/Liiift-Studio/SteadyGray" className="text-sm opacity-50 hover:opacity-100 transition-opacity">GitHub</a>
+					<a href="https://github.com/Liiift-Studio/SteadyGray" target="_blank" rel="noopener noreferrer" aria-label="SteadyGray on GitHub (opens in new tab)" className="text-sm text-muted hover:text-foreground transition-colors">GitHub ↗</a>
 				</div>
-				<div className="flex flex-wrap gap-x-4 gap-y-1 text-xs opacity-50 tracking-wide">
-					<span>TypeScript</span><span>·</span><span>Canvas pixel sampling</span><span>·</span><span>React + Vanilla JS</span>
+				<div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted tracking-wide">
+					<span>TypeScript</span><span aria-hidden="true">·</span><span>Canvas pixel sampling</span><span aria-hidden="true">·</span><span>React + Vanilla JS</span>
 				</div>
-				<p className="text-base opacity-60 leading-relaxed max-w-lg">
+				<p className="text-base leading-relaxed max-w-lg">
 					Compositors call it colour — the aggregate grey of a text block. When some lines are denser than others, the paragraph looks uneven. Gray Value measures ink pixel density per line using Canvas and adjusts letter-spacing until the paragraph has even colour throughout.
 				</p>
 			</section>
 
 			{/* Demo */}
 			<section className="w-full max-w-2xl lg:max-w-5xl flex flex-col gap-4">
-				<h2 className="text-xs uppercase tracking-widest opacity-50">Live demo</h2>
+				<h2 className="text-xs uppercase tracking-[0.18em] font-medium text-muted">Live demo</h2>
 				<div className="rounded-xl -mx-8 px-8 py-8" style={{ background: "rgba(0,0,0,0.25)", overflow: 'hidden' }}>
 					<Demo />
 				</div>
@@ -41,14 +42,14 @@ export default function Home() {
 
 			{/* Explanation */}
 			<section className="w-full max-w-2xl lg:max-w-5xl flex flex-col gap-6">
-				<h2 className="text-xs uppercase tracking-widest opacity-50">How it works</h2>
-				<div className="prose-grid grid grid-cols-1 sm:grid-cols-2 gap-12 text-sm leading-relaxed opacity-70">
+				<h2 className="text-xs uppercase tracking-[0.18em] font-medium text-muted">How it works</h2>
+				<div className="prose-grid grid grid-cols-1 sm:grid-cols-2 gap-12 text-sm leading-relaxed">
 					<div className="flex flex-col gap-3">
-						<p className="font-semibold opacity-100 text-base">Canvas pixel sampling</p>
+						<p className="font-semibold text-foreground text-base">Canvas pixel sampling</p>
 						<p>Each line of text is rendered to an off-screen Canvas at the correct font size and weight. The pixel data is read and ink pixels are counted. The ratio of ink to total pixels gives the line&rsquo;s optical density.</p>
 					</div>
 					<div className="flex flex-col gap-3">
-						<p className="font-semibold opacity-100 text-base">Per-line spacing correction</p>
+						<p className="font-semibold text-foreground text-base">Per-line spacing correction</p>
 						<p>The average density across all lines becomes the target. Each line gets a letter-spacing adjustment proportional to its deviation from the target, clamped to the maxAdjustment limit. The correction is re-run on resize.</p>
 					</div>
 				</div>
@@ -57,11 +58,11 @@ export default function Home() {
 			{/* Usage */}
 			<section className="w-full max-w-2xl lg:max-w-5xl flex flex-col gap-6">
 				<div className="flex items-baseline gap-4">
-					<h2 className="text-xs uppercase tracking-widest opacity-50">Usage</h2>
+					<h2 className="text-xs uppercase tracking-[0.18em] font-medium text-muted">Usage</h2>
 				</div>
 				<div className="flex flex-col gap-8 text-sm">
 					<div className="flex flex-col gap-3">
-						<p className="opacity-50">Drop-in component</p>
+						<p className="text-muted">Drop-in component</p>
 						<CodeBlock code={`import { GrayValueText } from '@liiift-studio/steadygray'
 
 <GrayValueText maxAdjustment={0.05} calibrationFactor={2}>
@@ -69,14 +70,14 @@ export default function Home() {
 </GrayValueText>`} />
 					</div>
 					<div className="flex flex-col gap-3">
-						<p className="opacity-50">Hook</p>
+						<p className="text-muted">Hook</p>
 						<CodeBlock code={`import { useGrayValue } from '@liiift-studio/steadygray'
 
 const ref = useGrayValue({ maxAdjustment: 0.05, calibrationFactor: 2 })
 <p ref={ref}>{children}</p>`} />
 					</div>
 					<div className="flex flex-col gap-3">
-						<p className="opacity-50">Vanilla JS</p>
+						<p className="text-muted">Vanilla JS</p>
 						<CodeBlock code={`import { applyGrayValue, removeGrayValue, getCleanHTML } from '@liiift-studio/steadygray'
 
 const el = document.querySelector('p')
@@ -89,11 +90,11 @@ applyGrayValue(el, original, { maxAdjustment: 0.05, calibrationFactor: 2 })
 removeGrayValue(el, original)`} />
 					</div>
 					<div className="flex flex-col gap-3">
-						<p className="opacity-50">Options</p>
+						<p className="text-muted">Options</p>
 						<table className="w-full text-xs" aria-label="steadyGray API options">
 							<caption className="sr-only">steadyGray API options reference</caption>
-							<thead><tr className="opacity-50 text-left"><th className="pb-2 pr-6 font-normal">Option</th><th className="pb-2 pr-6 font-normal">Default</th><th className="pb-2 font-normal">Description</th></tr></thead>
-							<tbody className="opacity-70">
+							<thead><tr className="text-subtle text-left"><th className="pb-2 pr-6 font-normal">Option</th><th className="pb-2 pr-6 font-normal">Default</th><th className="pb-2 font-normal">Description</th></tr></thead>
+							<tbody className="text-muted">
 								<tr className="border-t border-white/10 hover:bg-white/5 transition-colors"><td className="py-2 pr-6 font-mono">targetDensity</td><td className="py-2 pr-6">&apos;auto&apos;</td><td className="py-2">Target density ratio (0–1). &apos;auto&apos; uses the average of all lines.</td></tr>
 								<tr className="border-t border-white/10 hover:bg-white/5 transition-colors"><td className="py-2 pr-6 font-mono">densityMode</td><td className="py-2 pr-6">&apos;canvas&apos;</td><td className="py-2">&apos;canvas&apos; renders each line off-screen and counts ink pixels. &apos;glyph-path&apos; uses opentype.js to compute true glyph area via bezier paths — font-exact but requires opentype.js and a CORS-accessible font URL. Falls back silently to &apos;canvas&apos; if opentype.js is not installed or the font cannot be loaded.</td></tr>
 								<tr className="border-t border-white/10 hover:bg-white/5 transition-colors"><td className="py-2 pr-6 font-mono">fontUrl</td><td className="py-2 pr-6">—</td><td className="py-2">URL of the font file for glyph-path measurement. Required when densityMode is &apos;glyph-path&apos;. Must be same-origin or CORS-enabled.</td></tr>
@@ -111,7 +112,7 @@ removeGrayValue(el, original)`} />
 						</table>
 					</div>
 				<div className="flex flex-col gap-3">
-					<p className="opacity-50">Additional exports</p>
+					<p className="text-muted">Additional exports</p>
 					<CodeBlock code={`import { measureLineDensity, GRAY_VALUE_CLASSES } from '@liiift-studio/steadygray'
 
 // Sample ink density of a single line element directly:
@@ -124,8 +125,8 @@ const density = measureLineDensity(lineEl, { densityMode: 'canvas' })
 console.log(GRAY_VALUE_CLASSES)`} />
 				</div>
 				<div className="flex flex-col gap-3">
-					<p className="opacity-50">Accessibility &amp; display compatibility</p>
-					<p className="text-sm opacity-70 leading-relaxed">
+					<p className="text-muted">Accessibility &amp; display compatibility</p>
+					<p className="text-sm leading-relaxed">
 						steadyGray skips the canvas measurement and spacing correction on e-ink and other slow-refresh displays (Kindle, reMarkable, etc.) via a <code className="font-mono text-xs opacity-90">(update: slow)</code> <code className="font-mono text-xs opacity-90">matchMedia</code> guard — CSS transitions produce no visible effect on those panels but the pixel-counting work would still run. The element is restored to its original HTML and the function returns early.
 					</p>
 				</div>

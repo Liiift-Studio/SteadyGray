@@ -27,7 +27,7 @@ function Slider({ label, value, min, max, step, onChange, fmt, dimmed, title, de
 	const valueId = `${label.replace(/\s+/g, '-').toLowerCase()}-value`
 	return (
 		<div className="flex flex-col gap-1" style={{ opacity: dimmed ? 0.4 : 1, transition: 'opacity 0.2s ease' }}>
-			<span className="text-xs uppercase tracking-widest opacity-50">{label}</span>
+			<span className="text-xs uppercase tracking-[0.18em] font-medium text-muted">{label}</span>
 			<input
 				type="range" min={min} max={max} step={step} value={value}
 				aria-label={label} aria-describedby={`${valueId}${describedBy ? ` ${describedBy}` : ''}`}
@@ -36,7 +36,7 @@ function Slider({ label, value, min, max, step, onChange, fmt, dimmed, title, de
 				style={{ touchAction: 'pan-y', pointerEvents: dimmed ? 'none' : undefined }}
 				disabled={dimmed}
 			/>
-			<span id={valueId} className="tabular-nums text-xs opacity-50 text-right">{fmt ? fmt(value) : value}</span>
+			<span id={valueId} className="tabular-nums text-xs text-muted text-right">{fmt ? fmt(value) : value}</span>
 		</div>
 	)
 }
@@ -364,7 +364,7 @@ export default function Demo() {
 				)}
 			</div>
 			<div role="radiogroup" aria-label="Adjustment method" className="flex flex-wrap items-center gap-3 mb-4">
-				<span className="text-xs uppercase tracking-widest opacity-50" aria-hidden="true">Method</span>
+				<span className="text-xs uppercase tracking-[0.18em] font-medium text-muted" aria-hidden="true">Method</span>
 				{(['letter-spacing', 'word-spacing', 'font-weight', 'font-width'] as const).map(v => (
 					<button
 						key={v}
@@ -515,19 +515,19 @@ export default function Demo() {
 			{/* Caption — uses non-deferred method so it reflects the click immediately */}
 			<div className="flex items-center gap-3 mt-8">
 				{ambientMode ? (
-					<p className="text-xs opacity-50 italic" style={{ lineHeight: "1.8" }}>
+					<p className="text-xs text-muted italic" style={{ lineHeight: "1.8" }}>
 						Ambient light simulation for smart glasses: at {lux.toLocaleString()} lx ({luxLabel(lux)}), high ambient light bleeds background into text, requiring a sensitivity of {luxToCalibration(lux).toFixed(1)} to maintain even optical density.
 					</p>
 				) : cursorMode ? (
-					<p className="text-xs opacity-50 italic" style={{ lineHeight: "1.8" }}>
+					<p className="text-xs text-muted italic" style={{ lineHeight: "1.8" }}>
 						Move cursor up/down to adjust max adjustment. Press Esc to exit.
 					</p>
 				) : gyroMode ? (
-					<p className="text-xs opacity-50 italic" style={{ lineHeight: "1.8" }}>
+					<p className="text-xs text-muted italic" style={{ lineHeight: "1.8" }}>
 						Tilt front/back to adjust max adjustment.
 					</p>
 				) : (
-					<p className="text-xs opacity-50 italic" style={{ lineHeight: "1.8" }}>
+					<p className="text-xs text-muted italic" style={{ lineHeight: "1.8" }}>
 						{method === 'font-weight' || method === 'font-width'
 							? `Each line is measured by pixel density and adjusted by ±${effectiveMax.toFixed(MAX_ADJ_CFG[method].decimals)} ${MAX_ADJ_CFG[method].unit} via ${method}. Requires a variable font with a ${method === 'font-weight' ? 'wght' : 'wdth'} axis for continuous adjustment.`
 							: `Each line is measured by pixel density and adjusted by ±${effectiveMax.toFixed(3)} em via ${method}. E-ink displays and automotive HUDs benefit most — on e-ink, ambient light determines perceived contrast directly; on a windshield HUD, glare can wash out undifferentiated paragraphs entirely.`
