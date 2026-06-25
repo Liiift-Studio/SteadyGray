@@ -12,31 +12,31 @@ export default async function Image() {
 	const interLight = await readFile(join(process.cwd(), 'public/fonts/inter-300.woff'))
 	return new ImageResponse(
 		(
-			<div style={{ background: '#001622', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '72px 80px', fontFamily: 'Inter, sans-serif' }}>
+			<div style={{ background: '#fef4f7', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '72px 80px', fontFamily: 'Inter, sans-serif' }}>
 				{/* Label */}
-				<span style={{ fontSize: 13, letterSpacing: '0.18em', color: '#a6bcc0', textTransform: 'uppercase' }}>steadyGray</span>
+				<span style={{ fontSize: 13, letterSpacing: '0.18em', color: '#5b464d', textTransform: 'uppercase' }}>steadyGray</span>
 
 				{/* Even-colour bar preview + headline */}
 				<div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
 					<div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 48 }}>
 						{[1, 1, 1, 1, 0.7].map((scale, i) => (
-							<div key={i} style={{ width: `${scale * 540}px`, height: 3, background: i < 4 ? '#a6bcc0' : '#273031', borderRadius: 2 }} />
+							<div key={i} style={{ width: `${scale * 540}px`, height: 3, background: i < 4 ? '#5b464d' : '#928186', borderRadius: 2 }} />
 						))}
 					</div>
-					<div style={{ fontSize: 76, color: '#eff7f8', lineHeight: 1.06, fontWeight: 300 }}>Even colour,</div>
-					<div style={{ fontSize: 76, color: '#a6bcc0', lineHeight: 1.06, fontWeight: 300 }}>line by line.</div>
+					<div style={{ fontSize: 76, color: '#391724', lineHeight: 1.06, fontWeight: 300 }}>Even colour,</div>
+					<div style={{ fontSize: 76, color: '#5b464d', lineHeight: 1.06, fontWeight: 300 }}>line by line.</div>
 				</div>
 
 				{/* Footer */}
 				<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-					<div style={{ fontSize: 14, color: '#a6bcc0', letterSpacing: '0.04em', display: 'flex', gap: 20 }}>
+					<div style={{ fontSize: 14, color: '#5b464d', letterSpacing: '0.04em', display: 'flex', gap: 20 }}>
 						<span>TypeScript</span>
 						<span style={{ opacity: 0.4 }}>·</span>
 						<span>Canvas pixel sampling</span>
 						<span style={{ opacity: 0.4 }}>·</span>
 						<span>React + Vanilla JS</span>
 					</div>
-					<div style={{ fontSize: 13, color: '#859699', letterSpacing: '0.04em' }}>steadygray.com</div>
+					<div style={{ fontSize: 13, color: '#766369', letterSpacing: '0.04em' }}>steadygray.com</div>
 				</div>
 			</div>
 		),
