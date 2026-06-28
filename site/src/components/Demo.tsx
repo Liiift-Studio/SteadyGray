@@ -483,8 +483,8 @@ export default function Demo() {
 								borderRadius: '50%',
 								backdropFilter: 'blur(7px)',
 								WebkitBackdropFilter: 'blur(7px)',
-								border: '1px solid color-mix(in oklch, var(--foreground) 15%, transparent)',
-								boxShadow: '0 0 0 1px color-mix(in oklch, var(--foreground) 25%, transparent)',
+								border: '1px solid var(--panel)',
+								boxShadow: '0 0 0 1px var(--panel)',
 								cursor: 'grab',
 								touchAction: 'none',
 							}}
