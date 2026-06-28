@@ -484,7 +484,7 @@ export default function Demo() {
 								backdropFilter: 'blur(7px)',
 								WebkitBackdropFilter: 'blur(7px)',
 								border: '1px solid color-mix(in oklch, var(--foreground) 15%, transparent)',
-								boxShadow: '0 0 0 1px rgba(0,0,0,0.25)',
+								boxShadow: '0 0 0 1px color-mix(in oklch, var(--foreground) 25%, transparent)',
 								cursor: 'grab',
 								touchAction: 'none',
 							}}
