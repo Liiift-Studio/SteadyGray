@@ -12,7 +12,7 @@ export default async function Image() {
 	const interLight = await readFile(join(process.cwd(), 'public/fonts/inter-300.woff'))
 	return new ImageResponse(
 		(
-			<div style={{ background: '#fef4f7', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '72px 80px', fontFamily: 'Inter, sans-serif' }}>
+			<div style={{ background: '#fde8ee', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '72px 80px', fontFamily: 'Inter, sans-serif' }}>
 				{/* Label */}
 				<span style={{ fontSize: 13, letterSpacing: '0.18em', color: '#5b464d', textTransform: 'uppercase' }}>steadyGray</span>
 
